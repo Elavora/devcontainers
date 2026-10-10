@@ -22,6 +22,10 @@
   color: a2eeef
   description: New feature or request
 
+- name: improvement
+  color: a2eeef
+  description: Improvements to existing behavior
+
 - name: good first issue
   color: 7057ff
   description: Good for newcomers
