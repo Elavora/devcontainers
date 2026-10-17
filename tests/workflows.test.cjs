@@ -22,9 +22,63 @@ const listHas = (text, key, value) =>
   new RegExp(`${key}:\\s*\\[[^\\]]*['"]?${value}['"]?[^\\]]*\\]`).test(text) ||
   new RegExp(`${key}:\\s*\\n(\\s*-\\s*.*\\n)*?\\s*-\\s*['"]?${value}['"]?\\s*(\\n|$)`).test(text);
 
-test('.github/workflows contém exatamente image.yml, release.yml e sync-labels.yml', () => {
+test('.github/workflows contém exatamente image.yml, release.yml, sync-labels.yml e test.yml', () => {
   const files = fs.readdirSync(path.join(ROOT, WF)).sort();
-  assert.deepEqual(files, ['image.yml', 'release.yml', 'sync-labels.yml']);
+  assert.deepEqual(files, ['image.yml', 'release.yml', 'sync-labels.yml', 'test.yml']);
+});
+
+test('test.yml: nome Testes, gatilhos pull_request e push na main, sem dispatch', () => {
+  const t = code(read('test.yml'));
+  assert.match(t, /^name:\s*['"]?Testes['"]?\s*$/m);
+  const on = t.split(/^on:\s*$/m)[1].split(/^\S/m)[0];
+  assert.match(on, /^\s{2}pull_request:/m);
+  assert.match(on, /^\s{2}push:/m);
+  assert.ok(listHas(on, 'branches', 'main'), 'push na main');
+  assert.ok(!/repository_dispatch|workflow_dispatch|schedule|pull_request_target/.test(on), 'sem outros gatilhos');
+});
+
+test('test.yml: só contents: read, sem permissões no job além dessa', () => {
+  const t = code(read('test.yml'));
+  const [top, jobs] = t.split(/^jobs:\s*$/m);
+  const topPerms = top.split(/^permissions:\s*$/m)[1] || '';
+  assert.match(topPerms, /contents:\s*read/);
+  assert.ok(!/write/.test(t), 'sem nenhuma permissão de escrita');
+  const jobPerms = [...jobs.matchAll(/^\s+([a-z-]+):\s*(read|write|none)\s*$/gm)].map((m) => `${m[1]}:${m[2]}`);
+  assert.ok(jobPerms.every((p) => p === 'contents:read'), `permissões extras no job: ${jobPerms}`);
+});
+
+test('test.yml: job tests, checkout fixado por SHA sem persistir credenciais', () => {
+  const t = code(read('test.yml'));
+  const jobs = t.split(/^jobs:\s*$/m)[1] || '';
+  const jobIds = [...jobs.matchAll(/^ {2}([A-Za-z0-9_-]+):\s*$/gm)].map((m) => m[1]);
+  assert.deepEqual(jobIds, ['tests']);
+  const checkouts = t.match(/uses:\s*actions\/checkout@.*$/gm) || [];
+  assert.equal(checkouts.length, 1);
+  assert.equal(checkouts[0].replace(/^uses:\s*/, '').trim(), CHECKOUT);
+  assert.match(t, /persist-credentials:\s*false/);
+});
+
+test('test.yml: node --test em node:22-alpine e actionlint 1.7.12, repo montado :ro', () => {
+  const t = code(read('test.yml'));
+  const runs = t.split('\n').filter((l) => /docker run/.test(l));
+  const node = runs.find((l) => /node:22-alpine/.test(l));
+  const lint = runs.find((l) => /rhysd\/actionlint/.test(l));
+  assert.ok(node, 'passo com node:22-alpine');
+  assert.ok(lint, 'passo com actionlint');
+  assert.match(node, /node:22-alpine\s+node --test\s+["']tests\/\*\.test\.cjs["']/);
+  assert.match(lint, /rhysd\/actionlint:1\.7\.12(\s|$)/);
+  for (const l of [node, lint]) {
+    assert.match(l, /-v\s+["']?\$\{?PWD\}?:\/w:ro["']?/, `montagem :ro: ${l}`);
+    assert.match(l, /-w\s+\/w/);
+  }
+  assert.ok(!/smoke\.php/.test(t), 'smoke.php não entra no test.yml');
+  assert.ok(!/rhysd\/actionlint(:latest|\s|$)/m.test(t.replace(/rhysd\/actionlint:1\.7\.12/g, '')), 'actionlint fixado');
+});
+
+test('image.yml continua com o smoke.php e não roda node --test', () => {
+  const t = code(read('image.yml'));
+  assert.ok(t.includes('smoke.php'));
+  assert.ok(!/node --test/.test(t));
 });
 
 test('arquivos removidos: sync_labels.yml e .github/labels.yml', () => {
