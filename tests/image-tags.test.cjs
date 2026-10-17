@@ -12,33 +12,55 @@ test('scripts/image-tags.sh existe', () => {
   assert.ok(repoFileExists(SCRIPT), `${SCRIPT} não encontrado`);
 });
 
-test('exemplo da doc: 1.2.0-beta.3', () => {
+const LATEST = 'ghcr.io/elavora/php-dev:8.3-latest';
+
+test('exemplo da doc: 1.2.0 (estável) imprime a versionada e depois a 8.3-latest', () => {
+  const r = run('1.2.0');
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(r.stdout, `ghcr.io/elavora/php-dev:8.3-1.2.0\n${LATEST}\n`);
+  assert.equal(r.stderr, '');
+});
+
+test('exemplo da doc: 1.2.0-beta.3 (beta) imprime só a versionada', () => {
   const r = run('1.2.0-beta.3');
   assert.equal(r.code, 0, r.stderr);
   assert.equal(r.stdout, 'ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3\n');
   assert.equal(r.stderr, '');
 });
 
-const VALIDAS = [
-  '1.0.0',
-  '0.0.1-beta.1',
-  '10.20.30-beta.12',
-  '0.0.0',
-  // tabela "Referências publicadas"
-  '0.1.0',
-  '0.1.1-beta.1',
-  '1.2.0-beta.3',
-];
+// Tabela do script e tabela "Referências publicadas".
+const ESTAVEIS = ['1.0.0', '0.3.0', '0.0.0', '1.2.0'];
+const BETAS = ['0.0.1-beta.1', '10.20.30-beta.12', '0.3.1-beta.1', '1.2.0-beta.3'];
 
-for (const tag of VALIDAS) {
-  test(`tag válida ${tag}: uma linha em stdout, stderr vazio, código 0`, () => {
+for (const tag of ESTAVEIS) {
+  test(`tag estável ${tag}: exatamente duas linhas (versionada e depois 8.3-latest), stderr vazio, código 0`, () => {
     const r = run(tag);
     assert.equal(r.code, 0, `stderr: ${r.stderr}`);
-    assert.equal(r.stdout, `ghcr.io/elavora/php-dev:8.3-${tag}\n`);
-    assert.equal(r.stdout.split('\n').filter((l) => l !== '').length, 1);
+    assert.equal(r.stdout, `ghcr.io/elavora/php-dev:8.3-${tag}\n${LATEST}\n`);
+    const linhas = r.stdout.split('\n');
+    assert.equal(linhas.pop(), '', 'cada linha termina com quebra de linha');
+    assert.deepEqual(linhas, [`ghcr.io/elavora/php-dev:8.3-${tag}`, LATEST]);
     assert.equal(r.stderr, '');
   });
 }
+
+for (const tag of BETAS) {
+  test(`tag beta ${tag}: exatamente uma linha, sem a 8.3-latest, stderr vazio, código 0`, () => {
+    const r = run(tag);
+    assert.equal(r.code, 0, `stderr: ${r.stderr}`);
+    assert.equal(r.stdout, `ghcr.io/elavora/php-dev:8.3-${tag}\n`);
+    assert.ok(!r.stdout.includes('latest'), 'beta nunca imprime a 8.3-latest');
+    assert.equal(r.stderr, '');
+  });
+}
+
+test('a primeira linha é sempre a referência versionada', () => {
+  for (const tag of [...ESTAVEIS, ...BETAS]) {
+    const r = run(tag);
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(r.stdout.split('\n')[0], `ghcr.io/elavora/php-dev:8.3-${tag}`);
+  }
+});
 
 const INVALIDAS = [
   'v1.0.0',
@@ -62,7 +84,7 @@ for (const tag of INVALIDAS) {
   test(`tag inválida ${JSON.stringify(tag)}: código 1, stdout vazio, stderr com o valor`, () => {
     const r = run(tag);
     assert.equal(r.code, 1, `stdout: ${r.stdout} stderr: ${r.stderr}`);
-    assert.equal(r.stdout, '');
+    assert.equal(r.stdout, '', 'nada em stdout (nem a 8.3-latest)');
     assert.notEqual(r.stderr.trim(), '', 'stderr deveria ter uma mensagem');
     const visivel = tag.split('\n')[0].trim();
     if (visivel !== '') {

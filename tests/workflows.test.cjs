@@ -7,7 +7,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { ROOT, readRepoFile, repoFileExists } = require('./helpers.cjs');
+const { spawnSync } = require('node:child_process');
+const { ROOT, readRepoFile, repoFileExists, tmpDir } = require('./helpers.cjs');
 
 const SHA = '6884d27a5dc5930dceee3fe39f0b112faf5c3034';
 const OLD_SHA = 'b1651502678ad20b6d6f01eea2f3bb480d220c72';
@@ -171,16 +172,63 @@ test('sync-labels.yml: SHA fixado, sem prune, permissões', () => {
   assert.match(jobs, /contents:\s*read/);
 });
 
-test('image.yml: gatilhos pull_request, push na main, repository_dispatch tag-created e workflow_dispatch', () => {
-  const t = code(read('image.yml'));
-  const on = t.split(/^on:\s*$/m)[1].split(/^\S/m)[0];
-  assert.match(on, /^\s{2}pull_request:/m);
-  assert.match(on, /^\s{2}push:/m);
-  assert.ok(listHas(on, 'branches', 'main'), 'push na main');
-  assert.match(on, /^\s{2}repository_dispatch:/m);
-  assert.ok(listHas(on, 'types', 'tag-created'), 'repository_dispatch types: [tag-created]');
-  assert.match(on, /^\s{2}workflow_dispatch:/m);
+// Bloco `on` do image.yml e a sub-seção de um gatilho (linhas mais indentadas que a chave).
+const imageOn = () => code(read('image.yml')).split(/^on:\s*$/m)[1].split(/^\S/m)[0];
+function triggerBlock(on, name) {
+  const lines = on.split('\n');
+  const i = lines.findIndex((l) => new RegExp(`^ {2}${name}:`).test(l));
+  if (i < 0) return null;
+  const out = [lines[i]];
+  for (const l of lines.slice(i + 1)) {
+    if (l.trim() !== '' && !/^ {3,}/.test(l)) break;
+    out.push(l);
+  }
+  return out.join('\n');
+}
+// Itens de uma lista em fluxo ([a, b]) ou em bloco (- a), sem aspas.
+function listItems(block, key) {
+  const unq = (s) => s.trim().replace(/^['"]|['"]$/g, '');
+  const flow = block.match(new RegExp(`${key}:\\s*\\[([^\\]]*)\\]`));
+  if (flow) return flow[1].split(',').map(unq).filter((s) => s !== '');
+  const lines = block.split('\n');
+  const i = lines.findIndex((l) => new RegExp(`^\\s*${key}:\\s*$`).test(l));
+  if (i < 0) return null;
+  const items = [];
+  for (const l of lines.slice(i + 1)) {
+    const m = l.match(/^\s*-\s*(.+?)\s*$/);
+    if (!m) break;
+    items.push(unq(m[1]));
+  }
+  return items;
+}
+
+test('image.yml: gatilhos são exatamente pull_request, repository_dispatch e workflow_dispatch (sem push)', () => {
+  const on = imageOn();
+  const keys = [...on.matchAll(/^ {2}([A-Za-z_]+):/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(keys, ['pull_request', 'repository_dispatch', 'workflow_dispatch']);
+  assert.ok(!/^\s*push:/m.test(on), 'sem gatilho push (nem de branch nem de tag)');
   assert.ok(!/^\s*tags:/m.test(on), 'sem gatilho de tags');
+});
+
+test('image.yml: repository_dispatch do tipo tag-created e workflow_dispatch mantidos', () => {
+  const on = imageOn();
+  const rd = triggerBlock(on, 'repository_dispatch');
+  assert.ok(rd, 'repository_dispatch');
+  assert.deepEqual(listItems(rd, 'types'), ['tag-created']);
+  assert.ok(triggerBlock(on, 'workflow_dispatch'), 'workflow_dispatch');
+});
+
+test('image.yml: pull_request com paths de exatamente seis itens, sem paths-ignore nem branches', () => {
+  const pr = triggerBlock(imageOn(), 'pull_request');
+  assert.ok(pr, 'pull_request');
+  assert.ok(!/paths-ignore/.test(pr), 'sem paths-ignore');
+  assert.ok(!/^\s*branches(-ignore)?:/m.test(pr), 'sem branches');
+  const paths = listItems(pr, 'paths');
+  assert.ok(paths, 'pull_request com paths');
+  assert.deepEqual(
+    [...paths].sort(),
+    ['.dockerignore', '.github/workflows/image.yml', 'Dockerfile', 'php.ini', 'scripts/**', 'tests/smoke.php'].sort(),
+  );
 });
 
 test('image.yml: publica se e somente se for repository_dispatch', () => {
@@ -244,10 +292,137 @@ test('image.yml: permissões contents: read e packages: write, sem PAT', () => {
   assert.deepEqual([...new Set(secrets)].filter((s) => s !== 'GITHUB_TOKEN'), [], 'só GITHUB_TOKEN');
 });
 
-test('image.yml: nenhuma tag móvel publicada', () => {
-  const t = code(read('image.yml'));
-  assert.ok(!/:latest\b/.test(t), 'sem :latest');
-  assert.ok(!/ghcr\.io\/elavora\/php-dev:(8\.3|latest|8\.3-latest)(\s|['"]|$)/m.test(t));
+// Remove também comentários no fim da linha (" # ...").
+const noComments = (text) => code(text).split('\n').map((l) => l.replace(/\s+#.*$/, '')).join('\n');
+
+test('image.yml: o texto latest não aparece fora de comentários (a 8.3-latest vem só do image-tags.sh)', () => {
+  // O rótulo do runner (runs-on: ubuntu-latest) não é referência de imagem; ver o relatório do tester.
+  const t = noComments(read('image.yml')).replace(/^(\s*runs-on:\s*)['"]?ubuntu-latest['"]?\s*$/gm, '$1');
+  const linhas = t.split('\n').filter((l) => /latest/.test(l));
+  assert.deepEqual(linhas, [], 'latest fora de comentários');
+});
+
+test('image.yml: image-absent.sh aparece uma única vez e fora do laço for', () => {
+  const t = noComments(read('image.yml'));
+  const n = (t.match(/scripts\/image-absent\.sh/g) || []).length;
+  assert.equal(n, 1, 'image-absent.sh roda uma única vez');
+  const lines = t.split('\n');
+  let dentro = 0;
+  for (const l of lines) {
+    if (/^\s*for\b/.test(l)) dentro++;
+    if (dentro > 0) assert.ok(!/image-absent\.sh/.test(l), `image-absent.sh dentro do laço for: ${l}`);
+    if (/^\s*done\b|;\s*done\b/.test(l) && dentro > 0) dentro--;
+  }
+});
+
+// Executa o `run` do passo de publicação com docker e scripts falsos, para verificar a ordem das chamadas.
+function publishScript() {
+  const lines = read('image.yml').split('\n');
+  const indent = (l) => l.match(/^\s*/)[0].length;
+  const i = lines.findIndex((l) => !/^\s*#/.test(l) && l.includes('scripts/image-tags.sh'));
+  assert.ok(i >= 0, 'passo que chama scripts/image-tags.sh');
+  let r = i;
+  while (r >= 0 && !(/^\s*(-\s*)?run:\s*[|>][-+]?\s*$/.test(lines[r]) && indent(lines[r]) < indent(lines[i]))) r--;
+  assert.ok(r >= 0, 'o passo de publicação usa run: | (bloco)');
+  const base = indent(lines[r]);
+  const body = [];
+  for (const l of lines.slice(r + 1)) {
+    if (l.trim() !== '' && indent(l) <= base) break;
+    body.push(l);
+  }
+  const min = Math.min(...body.filter((l) => l.trim() !== '').map(indent));
+  return body.map((l) => l.slice(min)).join('\n');
+}
+
+function exprValue(expr, tag) {
+  if (/client_payload\.tag/.test(expr)) return tag;
+  if (/GITHUB_TOKEN|github\.token/.test(expr)) return 'token-falso';
+  if (/github\.actor/.test(expr)) return 'actor-falso';
+  return '';
+}
+
+function runPublish(tag, { absentCode = 0 } = {}) {
+  const dir = tmpDir('image-publish-');
+  const log = path.join(dir, 'calls.log');
+  const bin = path.join(dir, 'bin');
+  fs.mkdirSync(bin);
+  fs.mkdirSync(path.join(dir, 'scripts'));
+  const write = (file, body) => fs.writeFileSync(file, `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+  write(path.join(bin, 'docker'), 'echo "docker $*" >> "$FAKE_LOG"\n[ "$1" = login ] && cat >/dev/null\nexit 0');
+  // image-tags.sh falso, com o contrato documentado para as tags usadas aqui.
+  write(
+    path.join(dir, 'scripts', 'image-tags.sh'),
+    [
+      'echo "image-tags $*" >> "$FAKE_LOG"',
+      'case "$1" in',
+      '  1.2.0) printf "%s\\n" ghcr.io/elavora/php-dev:8.3-1.2.0 ghcr.io/elavora/php-dev:8.3-latest ;;',
+      '  1.2.0-beta.3) printf "%s\\n" ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3 ;;',
+      '  *) echo "tag inválida: $1" >&2; exit 1 ;;',
+      'esac',
+    ].join('\n'),
+  );
+  write(path.join(dir, 'scripts', 'image-absent.sh'), `echo "image-absent $#: $*" >> "$FAKE_LOG"\nexit ${absentCode}`);
+
+  const script = publishScript().replace(/\$\{\{\s*([^}]*?)\s*\}\}/g, (_, e) => exprValue(e, tag));
+  fs.writeFileSync(path.join(dir, 'run.sh'), script);
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_LOG: log };
+  const envLine = /^\s*([A-Za-z_][A-Za-z0-9_]*):\s*['"]?\$\{\{\s*(.+?)\s*\}\}['"]?\s*$/;
+  for (const l of code(read('image.yml')).split('\n')) {
+    const m = l.match(envLine);
+    if (m && m[1] !== 'ref') env[m[1]] = exprValue(m[2], tag);
+  }
+  const res = spawnSync('sh', ['-e', path.join(dir, 'run.sh')], { cwd: dir, env, encoding: 'utf8' });
+  const calls = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter((l) => l !== '') : [];
+  return { code: res.status, stderr: res.stderr, calls };
+}
+
+const V_EST = 'ghcr.io/elavora/php-dev:8.3-1.2.0';
+const V_BETA = 'ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3';
+const LATEST = 'ghcr.io/elavora/php-dev:8.3-latest';
+const tagPush = (calls) => calls.filter((c) => /^docker (tag|push) /.test(c));
+
+function assertPublishOrder(r, tag, versioned, refs) {
+  assert.equal(r.code, 0, `stderr: ${r.stderr}\nchamadas: ${r.calls.join(' | ')}`);
+  const c = r.calls;
+  assert.equal(c[0], `image-tags ${tag}`, 'image-tags.sh primeiro, com a tag do payload');
+  const absent = c.filter((x) => x.startsWith('image-absent'));
+  assert.deepEqual(absent, [`image-absent 1: ${versioned}`], 'image-absent.sh uma vez, só com a primeira linha');
+  const iLogin = c.findIndex((x) => x.startsWith('docker login'));
+  const iAbsent = c.indexOf(absent[0]);
+  const iFirstTagPush = c.findIndex((x) => /^docker (tag|push) /.test(x));
+  assert.ok(iLogin > 0 && iLogin < iAbsent, 'login depois do image-tags.sh e antes do image-absent.sh');
+  assert.ok(iAbsent < iFirstTagPush, 'image-absent.sh antes de qualquer tag/push');
+  assert.deepEqual(
+    tagPush(c),
+    refs.flatMap((ref) => [`docker tag elavora/php-dev:8.3 ${ref}`, `docker push ${ref}`]),
+    'tag e push de cada referência, na ordem impressa',
+  );
+  assert.match(c.at(-1), /^docker logout ghcr\.io/, 'logout ao final');
+}
+
+test('image.yml: publicação estável envia a versionada e depois a 8.3-latest', () => {
+  assertPublishOrder(runPublish('1.2.0'), '1.2.0', V_EST, [V_EST, LATEST]);
+});
+
+test('image.yml: publicação beta envia só a versionada', () => {
+  const r = runPublish('1.2.0-beta.3');
+  assertPublishOrder(r, '1.2.0-beta.3', V_BETA, [V_BETA]);
+  assert.ok(!r.calls.some((x) => x.includes('latest')), 'beta nunca envia a 8.3-latest');
+});
+
+test('image.yml: se o image-absent.sh falhar, nada é enviado e o logout acontece', () => {
+  const r = runPublish('1.2.0', { absentCode: 1 });
+  assert.notEqual(r.code, 0, 'o passo falha');
+  assert.deepEqual(tagPush(r.calls), [], 'nenhum docker tag/push');
+  assert.match(r.calls.at(-1) || '', /^docker logout ghcr\.io/, 'logout também na falha');
+});
+
+test('image.yml: se o image-tags.sh falhar, o passo para antes do login', () => {
+  const r = runPublish('v1.0.0');
+  assert.notEqual(r.code, 0, 'o passo falha');
+  assert.ok(!r.calls.some((x) => x.startsWith('docker login')), 'sem login');
+  assert.ok(!r.calls.some((x) => x.startsWith('image-absent')), 'sem image-absent.sh');
+  assert.deepEqual(tagPush(r.calls), [], 'nenhum docker tag/push');
 });
 
 test('.dockerignore continua excluindo scripts/', () => {
