@@ -20,6 +20,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.tag || github.ref }}
       - name: Build
         run: docker build --pull -t elavora/php-dev:8.3 .
       - name: Validate tools and user

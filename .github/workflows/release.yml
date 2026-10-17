@@ -11,7 +11,7 @@ permissions:
 jobs:
   release:
     if: github.event.pull_request.merged == true
-    uses: Elavora/.github/.github/workflows/release.yml@4f79cd60ae9afb1740e22c541dcf01064d4b701a
+    uses: Elavora/.github/.github/workflows/release.yml@b1651502678ad20b6d6f01eea2f3bb480d220c72
     with:
       package_name: elavora/devcontainers
-      automation_ref: 4f79cd60ae9afb1740e22c541dcf01064d4b701a
+      automation_ref: b1651502678ad20b6d6f01eea2f3bb480d220c72
