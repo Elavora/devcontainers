@@ -1,0 +1,25 @@
+name: Testes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: node --test e actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Testes dos scripts e workflows
+        run: docker run --rm -v "$PWD:/w:ro" -w /w node:22-alpine node --test "tests/*.test.cjs"
+
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/w:ro" -w /w rhysd/actionlint:1.7.12 -color
