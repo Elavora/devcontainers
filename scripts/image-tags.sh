@@ -1,5 +1,6 @@
 #!/bin/sh
-# Valida a tag criada pelo fluxo central e imprime a referência da imagem no GHCR.
+# Valida a tag criada pelo fluxo central e imprime as referências da imagem no GHCR, uma por linha:
+# a versionada primeiro e, se a tag for estável, a 8.3-latest em seguida.
 # Uso: sh scripts/image-tags.sh <tag>   (X.Y.Z ou X.Y.Z-beta.N)
 # Contrato: docs/publicacao.md, "Script scripts/image-tags.sh".
 
@@ -54,3 +55,9 @@ if ! valid_tag "$1"; then
 fi
 
 printf '%s:%s-%s\n' "$IMAGE" "$PHP_VERSION" "$1"
+
+# Estável (sem sufixo -beta.N): imprime também a referência móvel, depois da versionada.
+case $1 in
+    *-*) ;;
+    *) printf '%s:%s-latest\n' "$IMAGE" "$PHP_VERSION" ;;
+esac

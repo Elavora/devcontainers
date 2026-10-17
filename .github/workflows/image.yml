@@ -1,9 +1,15 @@
 name: PHP development image
 
 on:
+  # Só PRs que mexem no ambiente constroem a imagem; sem push na main (a publicação constrói na tag).
   pull_request:
-  push:
-    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - php.ini
+      - tests/smoke.php
+      - 'scripts/**'
+      - .github/workflows/image.yml
   repository_dispatch:
     types: [tag-created]
   workflow_dispatch:
@@ -35,12 +41,13 @@ jobs:
           set -eu
           # Valida a tag antes do login: se falhar, nada é publicado.
           refs=$(sh scripts/image-tags.sh "$RELEASE_TAG")
+          # A primeira linha é sempre a referência versionada.
+          version_ref=$(printf '%s\n' "$refs" | sed -n 1p)
           trap 'docker logout ghcr.io' EXIT
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
-          # Confere todas as referências antes de qualquer push.
-          for ref in $refs; do
-            sh scripts/image-absent.sh "$ref"
-          done
+          # Só a versionada não pode existir; a referência móvel é sobrescrita de propósito.
+          sh scripts/image-absent.sh "$version_ref"
+          # Envia na ordem impressa: a versionada antes da móvel.
           for ref in $refs; do
             docker tag elavora/php-dev:8.3 "$ref"
             docker push "$ref"

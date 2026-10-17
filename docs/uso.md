@@ -25,6 +25,22 @@ editor e o CI usem a mesma versão (veja [Ferramentas de qualidade](ferramentas-
 Prefira versões estáveis (`8.3-X.Y.Z`). As betas (`8.3-X.Y.Z-beta.N`) servem para testar uma mudança do ambiente
 antes da estável. Para saber como as versões são criadas, veja [Versões e publicação da imagem](publicacao.md).
 
+### Versão fixa ou `8.3-latest`
+
+Há duas formas de apontar para a imagem:
+
+| Referência | Quando usar | O que acontece |
+| --- | --- | --- |
+| `ghcr.io/elavora/php-dev:8.3-X.Y.Z` (versão fixa) | quando o projeto precisa de reprodutibilidade: todos, inclusive o CI, usam exatamente o mesmo ambiente até alguém trocar a versão num PR | a referência nunca muda de imagem |
+| `ghcr.io/elavora/php-dev:8.3-latest` | quando você quer sempre a última estável, sem atualizar a versão à mão | a cada release estável, passa a apontar para a imagem nova; betas não a alteram |
+
+O exemplo deste repositório usa a versão fixa, e ela é a recomendada para os projetos da organização. A
+`8.3-latest` existe a partir da `0.3.0`.
+
+Com a `8.3-latest`, o Docker só usa a imagem nova depois de baixá-la de novo: rode
+`docker pull ghcr.io/elavora/php-dev:8.3-latest` e reconstrua o container (**Dev Containers: Rebuild Container**
+no VS Code). Duas máquinas podem estar em estáveis diferentes se uma delas não baixou a imagem nova.
+
 ## Usar no VS Code (Dev Containers)
 
 Copie [`examples/devcontainer.json`](../examples/devcontainer.json) para `.devcontainer/devcontainer.json` do
@@ -72,6 +88,9 @@ para o `remoteUser`.
 Uma versão publicada não muda. Para receber um ambiente novo, o projeto troca a versão no campo `image`, num PR
 próprio. Para consumir exatamente o mesmo artefato, fixe também o digest:
 `ghcr.io/elavora/php-dev:8.3-0.2.0@sha256:<digest>`.
+
+Quem usa `8.3-latest` não troca nada no `devcontainer.json`: basta baixar a imagem de novo e reconstruir o
+container (veja [Versão fixa ou `8.3-latest`](#versão-fixa-ou-83-latest)).
 
 ## Construir a imagem localmente
 
@@ -145,7 +164,9 @@ Conteúdo esperado (a ordem das chaves pode variar; a ordem da lista de extensõ
 - O campo `image` é exatamente `ghcr.io/elavora/php-dev:8.3-0.2.0`, a primeira versão com as ferramentas de
   qualidade (ver [publicacao.md](publicacao.md#020-ferramentas-de-qualidade)). Essa imagem só passa a existir
   depois do merge do PR que a cria, como aconteceu com a `0.1.0`.
-- Não existe tag móvel (`8.3`, `8.3-latest`, `latest`): o exemplo sempre aponta para uma versão fixa.
+- O exemplo sempre aponta para uma versão fixa, nunca para a `8.3-latest` (nem para `8.3` ou `latest`, que não
+  existem). Quem quiser acompanhar a última estável troca o campo `image` no próprio projeto.
+- A `0.3.0` não muda o conteúdo da imagem, então o exemplo continua em `8.3-0.2.0`.
 - `name`, `remoteUser`, `postCreateCommand` e `php.validate.executablePath` ficam como estavam.
 - `extensions` contém exatamente as quatro extensões acima, nessa ordem: as duas que já existiam e, no fim,
   `junstyle.php-cs-fixer` e `EditorConfig.EditorConfig`.

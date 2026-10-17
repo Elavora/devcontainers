@@ -5,8 +5,12 @@
 ## Por que existe este fluxo
 
 Os projetos da Elavora usam a imagem `ghcr.io/elavora/php-dev` como ambiente de desenvolvimento. Para que cada
-projeto escolha quando atualizar o ambiente, a imagem é publicada com uma **versão fixa**, e uma versão publicada
-não muda depois.
+projeto escolha quando atualizar o ambiente, cada versão da imagem é publicada com uma **referência fixa**
+(`8.3-X.Y.Z`), e uma versão publicada não muda depois.
+
+Quem prefere acompanhar sempre a última estável, sem trocar a versão à mão, usa a referência móvel `8.3-latest`.
+Ela é movida a cada release estável e aponta para a mesma imagem (o mesmo digest) da versão fixa dessa release.
+As betas nunca mexem nela.
 
 Ninguém cria essas versões à mão. Toda a organização usa o mesmo fluxo automático, mantido no repositório
 [`Elavora/.github`](https://github.com/Elavora/.github): quando um pull request entra na `main`, a versão nova é
@@ -21,17 +25,35 @@ PR integrado na main
        └─ calcula a versão pelas labels, cria a tag e a GitHub Release
             └─ envia o evento "tag-created" para este repo
                  └─ image.yml constrói a imagem na tag, valida, confere que a versão ainda não existe e publica no GHCR
+                      └─ se a versão é estável, move também a 8.3-latest para a mesma imagem
 ```
 
 Um exemplo do dia a dia:
 
-1. Um PR com a label `bug` é integrado e a última estável é `1.1.1`.
+1. Um PR com a label `bug` é integrado e a última estável é `1.1.1`. A `8.3-latest` aponta para a `8.3-1.1.1`.
 2. O fluxo central cria a tag `1.1.2-beta.1` (uma pré-release).
-3. O `image.yml` publica `ghcr.io/elavora/php-dev:8.3-1.1.2-beta.1`.
-4. Mais tarde, um PR com a label `release` é integrado. Sai a estável `1.1.2`, e a imagem
-   `ghcr.io/elavora/php-dev:8.3-1.1.2`.
+3. O `image.yml` publica só `ghcr.io/elavora/php-dev:8.3-1.1.2-beta.1`. A `8.3-latest` continua na `8.3-1.1.1`.
+4. Mais tarde, um PR com a label `release` é integrado. Sai a estável `1.1.2`: o `image.yml` publica
+   `ghcr.io/elavora/php-dev:8.3-1.1.2` e move `ghcr.io/elavora/php-dev:8.3-latest` para essa mesma imagem.
 
-Na referência da imagem, `8.3` é a versão do PHP e o que vem depois do hífen é a versão deste repositório.
+Na referência da imagem, `8.3` é a versão do PHP e o que vem depois do hífen é a versão deste repositório (ou
+`latest`). O `8.3` fica também na referência móvel para que uma futura imagem com outro PHP tenha a sua própria,
+por exemplo `8.4-latest`.
+
+### Quando a imagem é construída
+
+Construir a imagem leva alguns minutos, e antes ela era construída três vezes para cada mudança: no PR, no push
+na `main` e na publicação. Agora:
+
+| Momento | O que acontece |
+| --- | --- |
+| PR que mexe no ambiente (`Dockerfile`, `.dockerignore`, `php.ini`, `tests/smoke.php`, `scripts/**` ou `.github/workflows/image.yml`) | constrói e roda o smoke test; não publica |
+| PR que não mexe em nenhum desses arquivos (por exemplo, só docs ou testes dos scripts) | não constrói |
+| push na `main` (merge do PR) | não constrói |
+| publicação (`repository_dispatch` `tag-created`, depois do merge) | constrói na tag, roda o smoke test e publica |
+| execução manual (`workflow_dispatch`) | constrói e roda o smoke test da ref escolhida; não publica |
+
+Os testes dos scripts e dos workflows (`test.yml`) continuam rodando em todo PR e em push na `main`.
 
 ### Qual label usar no PR
 
@@ -155,13 +177,38 @@ existe neste repositório.
 
 #### Gatilhos
 
+Bloco `on` esperado (a ordem das chaves e dos itens de `paths` pode variar; as listas podem estar na forma
+`[a, b]` ou `- a`):
+
+```yaml
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - php.ini
+      - tests/smoke.php
+      - 'scripts/**'
+      - .github/workflows/image.yml
+  repository_dispatch:
+    types: [tag-created]
+  workflow_dispatch:
+```
+
 | Evento | O que faz |
 | --- | --- |
-| `pull_request` | constrói e valida a imagem; não publica |
-| `push` na `main` | constrói e valida a imagem; não publica |
+| `pull_request` que altera algum arquivo de `paths` | constrói e valida a imagem; não publica |
+| `pull_request` que não altera nenhum arquivo de `paths` | o workflow não roda |
 | `repository_dispatch` do tipo `tag-created` | constrói a imagem na tag, valida e **publica** |
 | `workflow_dispatch` | constrói e valida a imagem da ref escolhida; não publica |
 
+- `paths` do `pull_request` tem exatamente estes seis itens: `Dockerfile`, `.dockerignore`, `php.ini`,
+  `tests/smoke.php`, `scripts/**` e `.github/workflows/image.yml`. O `.dockerignore` entra porque define o que vai
+  para o contexto do build e, portanto, afeta a imagem. Não há `paths-ignore` nem `branches` no `pull_request`.
+- **Não há gatilho `push`**, nem de branch nem de tag. O build que rodava no push da `main` saiu: o PR já validou a
+  imagem, e a publicação constrói de novo na tag.
+- Nenhum outro gatilho (`pull_request_target`, `schedule`...).
+- Como os checks não são obrigatórios na `main`, um PR em que o workflow não roda pode ser integrado normalmente.
 - O gatilho `push` de tags (`tags: ['v*']`) é **removido**. As tags agora são criadas pelo workflow central com o
   `GITHUB_TOKEN`, e tags criadas assim não disparam `push: tags`. A única via de publicação é o
   `repository_dispatch` `tag-created`.
@@ -172,8 +219,9 @@ existe neste repositório.
 #### Payload do evento
 
 O workflow central envia `client_payload: { tag, release_id, prerelease }`. O `image.yml` usa só `tag`
-(exemplos: `1.2.0`, `1.2.0-beta.3`). `prerelease` não muda a publicação: estáveis e betas publicam a imagem
-versionada do mesmo jeito.
+(exemplos: `1.2.0`, `1.2.0-beta.3`). O workflow **não** lê `prerelease`: quem decide se a versão é estável ou
+beta é o `image-tags.sh`, pelo formato da tag (`X.Y.Z` é estável, `X.Y.Z-beta.N` é beta). Assim a regra fica num
+único lugar, testável sem o evento.
 
 #### Passos do job
 
@@ -184,16 +232,46 @@ versionada do mesmo jeito.
 3. **Validação**: `docker run --rm elavora/php-dev:8.3 php /usr/local/share/elavora/smoke.php`.
 4. **Publicação** (só no `repository_dispatch`):
    1. A tag do payload chega ao script por variável de ambiente, nunca interpolada direto no `run`, e é passada
-      para `scripts/image-tags.sh`, que valida a tag e imprime as referências da imagem (ver abaixo). Se o script
-      falhar, o job falha **antes** do login no GHCR e nada é publicado.
+      para `scripts/image-tags.sh`, que valida a tag e imprime as referências da imagem, uma por linha (ver
+      abaixo). A **primeira linha** é sempre a referência versionada; numa estável, a segunda é a `8.3-latest`.
+      Se o script falhar, o job falha **antes** do login no GHCR e nada é publicado.
    2. Login no `ghcr.io` com o `GITHUB_TOKEN` (via `--password-stdin`) e `github.actor`.
-   3. Para **cada** referência impressa pelo `image-tags.sh`, roda `scripts/image-absent.sh <referência>` (ver
-      abaixo), que confere no GHCR se a referência ainda não existe. Todas as referências são conferidas antes de
-      qualquer push. Se alguma já existir, ou se a consulta der erro, o job falha e nada é enviado.
-   4. Para cada referência: `docker tag elavora/php-dev:8.3 <referência>` e `docker push <referência>`.
+   3. Roda `scripts/image-absent.sh` **uma única vez**, com a referência versionada (a primeira linha), antes de
+      qualquer `docker tag` ou `docker push`. Se ela já existir, ou se a consulta der erro, o job falha e nada é
+      enviado. A `8.3-latest` **não** passa pelo `image-absent.sh`: ela é sobrescrita de propósito. (Se passasse,
+      o script sairia com 2, porque `latest` não é uma tag válida para ele.)
+   4. Para cada referência, na ordem impressa pelo `image-tags.sh`: `docker tag elavora/php-dev:8.3 <referência>`
+      e `docker push <referência>`. A versionada é enviada antes da `8.3-latest`, então a `latest` nunca aponta
+      para uma imagem cuja versão fixa não foi publicada. As duas referências vêm da mesma imagem local, por isso
+      têm o mesmo digest.
    5. Logout do `ghcr.io` ao final, também em caso de falha (`trap ... EXIT`). A posição do `trap` em relação
       ao login é livre (antes ou depois do `docker login`), desde que o logout aconteça sempre que o passo de
       publicação terminar, com sucesso ou falha.
+
+   Um `run` que cumpre esse contrato:
+
+   ```sh
+   set -eu
+   # Valida a tag antes do login: se falhar, nada é publicado.
+   refs=$(sh scripts/image-tags.sh "$RELEASE_TAG")
+   version_ref=$(printf '%s\n' "$refs" | sed -n 1p)
+   trap 'docker logout ghcr.io' EXIT
+   printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+   # Só a versionada não pode existir; a 8.3-latest é sobrescrita de propósito.
+   sh scripts/image-absent.sh "$version_ref"
+   for ref in $refs; do
+     docker tag elavora/php-dev:8.3 "$ref"
+     docker push "$ref"
+   done
+   ```
+
+   Fora de comentários, o texto `latest` não aparece no `image.yml`: a referência móvel vem só do
+   `image-tags.sh`. A única exceção é o rótulo do runner, `runs-on: ubuntu-latest`, que não é referência de
+   imagem. A chamada ao `image-absent.sh` não fica dentro do laço `for` que percorre as referências.
+
+   O `run` da publicação é **POSIX `sh`**: não usa recursos exclusivos do bash (arrays, `[[ ]]`, `pipefail`,
+   `<<<`, `$'...'`). Ele precisa funcionar ao ser executado com `sh -e` (o ash do busybox no `node:22-alpine`, onde
+   os testes o rodam com `docker` e scripts falsos), além do bash do runner do Actions.
 
 Permissões: `contents: read` no workflow; no job, `contents: read` e `packages: write`. Não há PAT. A imagem
 publicada é Linux amd64.
@@ -201,17 +279,25 @@ publicada é Linux amd64.
 #### Referências publicadas
 
 Para cada tag `X.Y.Z` ou `X.Y.Z-beta.N` criada pelo fluxo central, o workflow publica
-`ghcr.io/elavora/php-dev:8.3-<tag>`, sem prefixo `v`:
+`ghcr.io/elavora/php-dev:8.3-<tag>`, sem prefixo `v`. Quando a tag é estável (`X.Y.Z`), publica também
+`ghcr.io/elavora/php-dev:8.3-latest`, apontando para a mesma imagem:
 
-| Tag criada | Imagem publicada |
-| --- | --- |
-| `0.1.0` | `ghcr.io/elavora/php-dev:8.3-0.1.0` |
-| `0.1.1-beta.1` | `ghcr.io/elavora/php-dev:8.3-0.1.1-beta.1` |
-| `1.0.0` | `ghcr.io/elavora/php-dev:8.3-1.0.0` |
-| `1.2.0-beta.3` | `ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3` |
+| Tag criada | Tipo | Referências publicadas |
+| --- | --- | --- |
+| `0.3.0` | estável | `ghcr.io/elavora/php-dev:8.3-0.3.0` e `ghcr.io/elavora/php-dev:8.3-latest` |
+| `0.3.1-beta.1` | beta | só `ghcr.io/elavora/php-dev:8.3-0.3.1-beta.1`; a `8.3-latest` não muda |
+| `1.0.0` | estável | `ghcr.io/elavora/php-dev:8.3-1.0.0` e `ghcr.io/elavora/php-dev:8.3-latest` |
+| `1.2.0-beta.3` | beta | só `ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3`; a `8.3-latest` não muda |
 
-Não há tag móvel. Nem a estável nem a beta publicam `8.3`, `8.3-latest`, `latest` ou qualquer outra referência
-que mude de imagem com o tempo: cada tag criada gera exatamente uma referência, e ela nunca é sobrescrita.
+Regras:
+
+- A referência versionada (`8.3-<tag>`) nunca é sobrescrita: o `image-absent.sh` impede publicar uma tag que já
+  existe.
+- A `8.3-latest` é a **única** referência móvel e é sobrescrita de propósito a cada estável. Não há `8.3`,
+  `latest` puro, `8.3-beta` nem outra referência móvel.
+- Depois de uma publicação estável, `8.3-latest` e `8.3-<tag>` têm o mesmo digest.
+- A `8.3-latest` só passa a existir na primeira estável publicada depois desta mudança (a `0.3.0`). As versões
+  anteriores (`0.1.0`, `0.2.0`) não são republicadas.
 
 #### Script `scripts/image-tags.sh`
 
@@ -220,6 +306,10 @@ Script POSIX `sh`, sem dependências além do `sh` e de utilitários básicos. R
 referências. Quem publica é o workflow.
 
 ```sh
+$ sh scripts/image-tags.sh 1.2.0
+ghcr.io/elavora/php-dev:8.3-1.2.0
+ghcr.io/elavora/php-dev:8.3-latest
+
 $ sh scripts/image-tags.sh 1.2.0-beta.3
 ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3
 ```
@@ -227,16 +317,26 @@ ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3
 - Recebe **exatamente um** argumento: a tag criada pelo fluxo central.
 - Tag válida: casa com `^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-beta\.[1-9][0-9]*)?$`. É o formato
   novo do `.github`: `X.Y.Z` ou `X.Y.Z-beta.N` com `N >= 1`, sem zero à esquerda e sem `v`.
-- Sucesso: imprime em stdout exatamente uma linha, `ghcr.io/elavora/php-dev:8.3-<tag>`, não imprime nada em
-  stderr e sai com código 0.
-- Falha: sai com código 1, imprime em stderr uma mensagem que contém o valor recebido e **nada** em stdout.
+- Tag **estável** é a que não tem sufixo (`X.Y.Z`). Tag **beta** é a que tem `-beta.N`.
+- Sucesso com tag estável: imprime em stdout exatamente **duas** linhas, nesta ordem, cada uma terminada por
+  quebra de linha:
+  1. `ghcr.io/elavora/php-dev:8.3-<tag>`
+  2. `ghcr.io/elavora/php-dev:8.3-latest`
+
+  Não imprime nada em stderr e sai com código 0.
+- Sucesso com tag beta: imprime em stdout exatamente **uma** linha, `ghcr.io/elavora/php-dev:8.3-<tag>`,
+  terminada por quebra de linha. Nunca imprime a `8.3-latest`. Não imprime nada em stderr e sai com código 0.
+- A primeira linha é sempre a referência versionada. É nela que o workflow roda o `image-absent.sh`.
+- Falha: sai com código 1, imprime em stderr uma mensagem que contém o valor recebido e **nada** em stdout (nem a
+  `8.3-latest`).
 
 | Entrada | Resultado |
 | --- | --- |
-| `1.0.0` | stdout `ghcr.io/elavora/php-dev:8.3-1.0.0`, código 0 |
-| `0.0.1-beta.1` | stdout `ghcr.io/elavora/php-dev:8.3-0.0.1-beta.1`, código 0 |
-| `10.20.30-beta.12` | stdout `ghcr.io/elavora/php-dev:8.3-10.20.30-beta.12`, código 0 |
-| `0.0.0` | stdout `ghcr.io/elavora/php-dev:8.3-0.0.0`, código 0 (formato válido) |
+| `1.0.0` | stdout `ghcr.io/elavora/php-dev:8.3-1.0.0` e `ghcr.io/elavora/php-dev:8.3-latest` (duas linhas), código 0 |
+| `0.3.0` | stdout `ghcr.io/elavora/php-dev:8.3-0.3.0` e `ghcr.io/elavora/php-dev:8.3-latest` (duas linhas), código 0 |
+| `0.0.0` | stdout `ghcr.io/elavora/php-dev:8.3-0.0.0` e `ghcr.io/elavora/php-dev:8.3-latest` (duas linhas), código 0 (formato válido) |
+| `0.0.1-beta.1` | stdout só `ghcr.io/elavora/php-dev:8.3-0.0.1-beta.1` (uma linha), código 0 |
+| `10.20.30-beta.12` | stdout só `ghcr.io/elavora/php-dev:8.3-10.20.30-beta.12` (uma linha), código 0 |
 | `v1.0.0` | código 1 (prefixo `v` legado) |
 | `v0.0.1-rc.1` | código 1 (`rc` legada) |
 | `1.0.0-rc.1` | código 1 |
@@ -278,7 +378,9 @@ sai com o código desejado, o que permite simular cada caso sem rede nem Docker.
 
 **Argumento.** Exatamente um, na forma `ghcr.io/elavora/php-dev:8.3-<tag>`, com `<tag>` válida pela mesma regra do
 `image-tags.sh`. Com argumento ausente, vazio, a mais ou fora dessa forma, o script sai com código 2, imprime a
-mensagem em stderr e **não roda** o comando de inspeção.
+mensagem em stderr e **não roda** o comando de inspeção. Isso vale também para
+`ghcr.io/elavora/php-dev:8.3-latest`: o script não muda com a referência móvel, e `latest` continua sendo
+argumento inválido (código 2, sem rodar a inspeção). O workflow nunca o chama com ela.
 
 **Classificação da resposta.** O script guarda a saída do comando (stdout e stderr juntos) e o código de saída:
 
@@ -313,7 +415,10 @@ Exemplos, com um comando falso em `IMAGE_INSPECT_CMD`:
 - Se a publicação falhar antes do push (por exemplo, erro na consulta ou no login), use **Re-run failed jobs** na
   execução do `repository_dispatch`. Ela refaz o checkout da mesma tag e publica.
 - Reexecutar uma publicação que já deu certo **falha** no `image-absent.sh`, sem enviar nada. A imagem publicada
-  continua a mesma.
+  continua a mesma, e a `8.3-latest` também.
+- Se o push da versionada der certo e o da `8.3-latest` falhar, a reexecução também para no `image-absent.sh`,
+  porque a versionada já existe. A versão fixa fica correta, e a `8.3-latest` continua na estável anterior até a
+  próxima publicação estável.
 - Não há como republicar uma versão. Se uma imagem publicada tiver problema, a correção é um PR novo, que gera uma
   versão nova.
 - O fluxo central nunca move nem apaga tags do Git; a imagem versionada segue a mesma regra.
@@ -409,6 +514,21 @@ depois da primeira sincronização de labels.
 - O `examples/devcontainer.json` passa a usar `ghcr.io/elavora/php-dev:8.3-0.2.0` nesse mesmo PR. Até o merge,
   essa imagem ainda não existe no GHCR.
 - O PR não muda os workflows, os scripts nem a versão fixada do `Elavora/.github`.
+
+### 0.3.0: tag `8.3-latest` e regras de build
+
+Esta versão revoga a regra anterior de "nenhuma tag móvel", por decisão do usuário em 2026-10-17.
+
+- O PR da branch `feat/tag-latest-e-regras-build` recebe as labels `enhancement` + `release`.
+- A última estável é `0.2.0`. Se nenhum outro PR entrar antes, o merge gera a estável **`0.3.0`**, com as
+  imagens `ghcr.io/elavora/php-dev:8.3-0.3.0` e `ghcr.io/elavora/php-dev:8.3-latest` (a primeira publicação da
+  `latest`).
+- Mudam o `image.yml` (gatilhos e passo de publicação) e o `scripts/image-tags.sh` (duas linhas na estável). O
+  `image-absent.sh`, o `Dockerfile`, o `php.ini`, o smoke test, o `test.yml`, os chamadores do `Elavora/.github` e a
+  versão fixada dele não mudam.
+- O conteúdo da imagem é o mesmo da `0.2.0`, por isso o `examples/devcontainer.json` continua em
+  `ghcr.io/elavora/php-dev:8.3-0.2.0`.
+- Este PR altera `scripts/` e o `image.yml`, então o build da imagem roda no próprio PR.
 
 ---
 

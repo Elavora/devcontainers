@@ -11,7 +11,9 @@ este repositório.
 ## Começo rápido
 
 1. Escolha uma versão estável nas [releases](https://github.com/Elavora/devcontainers/releases). A release `X.Y.Z`
-   corresponde à imagem `ghcr.io/elavora/php-dev:8.3-X.Y.Z`.
+   corresponde à imagem `ghcr.io/elavora/php-dev:8.3-X.Y.Z`. Fixar a versão garante que todos usam o mesmo
+   ambiente. Se preferir acompanhar sempre a última estável, use `ghcr.io/elavora/php-dev:8.3-latest` (a partir
+   da `0.3.0`; veja [Versão fixa ou `8.3-latest`](docs/uso.md#versão-fixa-ou-83-latest)).
 2. Copie [`examples/devcontainer.json`](examples/devcontainer.json) para `.devcontainer/devcontainer.json` do
    projeto, com essa versão no campo `image`:
 
@@ -32,7 +34,8 @@ Leia nesta ordem:
    imagem, a formatação ao salvar no VS Code, como atualizar a versão das ferramentas e o contrato do `Dockerfile`
    e do smoke test.
 3. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
-   GHCR, qual label usar no PR e o contrato dos workflows.
+   GHCR, quando a `8.3-latest` é movida, quando a imagem é construída, qual label usar no PR e o contrato dos
+   workflows.
 
 As regras de versão, o catálogo de labels e as regras de formatação (configuração do PHP-CS-Fixer e `.editorconfig`
 base) são comuns a toda a organização e ficam no [`Elavora/.github`](https://github.com/Elavora/.github).
@@ -60,8 +63,11 @@ O repositório tem dois tipos de teste, separados:
   `node --test`. Veja
   [Construir a imagem localmente](docs/uso.md#construir-a-imagem-localmente).
 
-No CI, o workflow **Testes** roda os testes dos scripts e o actionlint em todo PR e em push na `main`, e o
-workflow da imagem roda o `smoke.php` (detalhes em [publicacao.md](docs/publicacao.md#testes-githubworkflowstestyml)).
+No CI, o workflow **Testes** roda os testes dos scripts e o actionlint em todo PR e em push na `main`
+(detalhes em [publicacao.md](docs/publicacao.md#testes-githubworkflowstestyml)). O workflow da imagem constrói e
+roda o `smoke.php` só nos PRs que mexem no ambiente (`Dockerfile`, `.dockerignore`, `php.ini`, `tests/smoke.php`,
+`scripts/**` ou `.github/workflows/image.yml`) e na publicação de cada versão; ele não roda no push da `main` (veja
+[Quando a imagem é construída](docs/publicacao.md#quando-a-imagem-é-construída)).
 
 ## Contribuindo
 
