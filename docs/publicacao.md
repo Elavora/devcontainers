@@ -1,6 +1,6 @@
 # Versões e publicação da imagem
 
-[README](../README.md) · Anterior: [Como usar a imagem](uso.md)
+[README](../README.md) · Anterior: [Ferramentas de qualidade](ferramentas-de-qualidade.md)
 
 ## Por que existe este fluxo
 
@@ -394,11 +394,22 @@ workflow faz referência a `micnncim/action-label-syncer`, a `b1651502678ad20b6d
     merges dos PRs #1 e #2), mais o PR do evento;
   - os PRs #1 e #2 não têm labels, então a versão depende só das labels do PR de adoção;
   - o PR de adoção recebe as labels `enhancement` + `release`, e a primeira versão é a estável **`0.1.0`**, com a
-    imagem `ghcr.io/elavora/php-dev:8.3-0.1.0`. É essa referência que o `examples/devcontainer.json` usa.
+    imagem `ghcr.io/elavora/php-dev:8.3-0.1.0`. O `examples/devcontainer.json` usou essa referência até a
+    `0.2.0`.
 
 Foi usada `enhancement`, e não `feature`, porque `feature` ainda não existe neste repositório e só passa a existir
 depois da primeira sincronização de labels.
 
+### 0.2.0: ferramentas de qualidade
+
+- O PR que adiciona o PHP-CS-Fixer e o editorconfig-checker à imagem (branch `feat/ferramentas-qualidade`, ver
+  [Ferramentas de qualidade](ferramentas-de-qualidade.md)) recebe as labels `enhancement` + `release`.
+- A última estável é `0.1.0` e não há beta depois dela. Se nenhum outro PR entrar antes, o merge desse PR gera
+  a estável **`0.2.0`**, com a imagem `ghcr.io/elavora/php-dev:8.3-0.2.0`.
+- O `examples/devcontainer.json` passa a usar `ghcr.io/elavora/php-dev:8.3-0.2.0` nesse mesmo PR. Até o merge,
+  essa imagem ainda não existe no GHCR.
+- O PR não muda os workflows, os scripts nem a versão fixada do `Elavora/.github`.
+
 ---
 
-[README](../README.md) · Anterior: [Como usar a imagem](uso.md)
+[README](../README.md) · Anterior: [Ferramentas de qualidade](ferramentas-de-qualidade.md)

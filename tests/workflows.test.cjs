@@ -256,15 +256,42 @@ test('.dockerignore continua excluindo scripts/', () => {
   assert.ok(!/^!\s*scripts/m.test(t));
 });
 
-test('examples/devcontainer.json aponta para ghcr.io/elavora/php-dev:8.3-0.1.0 e mantém os demais campos', () => {
+test('examples/devcontainer.json segue exatamente o contrato de docs/uso.md (imagem 8.3-0.2.0, extensões e settings)', () => {
   const j = JSON.parse(readRepoFile('examples/devcontainer.json'));
-  assert.equal(j.image, 'ghcr.io/elavora/php-dev:8.3-0.1.0');
-  assert.equal(j.name, 'Elavora PHP 8.3');
-  assert.equal(j.remoteUser, 'vscode');
-  assert.equal(
-    j.postCreateCommand,
-    'git config --global --add safe.directory "$(pwd)" && composer install --no-interaction --prefer-dist',
-  );
-  assert.deepEqual(j.customizations.vscode.extensions, ['xdebug.php-debug', 'bmewburn.vscode-intelephense-client']);
-  assert.deepEqual(j.customizations.vscode.settings, { 'php.validate.executablePath': '/usr/local/bin/php' });
+  assert.equal(j.image, 'ghcr.io/elavora/php-dev:8.3-0.2.0');
+  assert.deepEqual(j, {
+    name: 'Elavora PHP 8.3',
+    image: 'ghcr.io/elavora/php-dev:8.3-0.2.0',
+    remoteUser: 'vscode',
+    postCreateCommand:
+      'git config --global --add safe.directory "$(pwd)" && composer install --no-interaction --prefer-dist',
+    customizations: {
+      vscode: {
+        extensions: [
+          'xdebug.php-debug',
+          'bmewburn.vscode-intelephense-client',
+          'junstyle.php-cs-fixer',
+          'EditorConfig.EditorConfig',
+        ],
+        settings: {
+          'php.validate.executablePath': '/usr/local/bin/php',
+          'php-cs-fixer.executablePath': '/usr/local/bin/php-cs-fixer',
+          'php-cs-fixer.config': '.php-cs-fixer.php;.php-cs-fixer.dist.php',
+          'php-cs-fixer.rules': '@PER-CS',
+          'php-cs-fixer.onsave': false,
+          '[php]': {
+            'editor.defaultFormatter': 'junstyle.php-cs-fixer',
+            'editor.formatOnSave': true,
+          },
+        },
+      },
+    },
+  });
+});
+
+test('examples/devcontainer.json: extensões na ordem documentada, as novas no fim', () => {
+  const j = JSON.parse(readRepoFile('examples/devcontainer.json'));
+  const ext = j.customizations.vscode.extensions;
+  assert.deepEqual(ext.slice(0, 2), ['xdebug.php-debug', 'bmewburn.vscode-intelephense-client']);
+  assert.deepEqual(ext.slice(2), ['junstyle.php-cs-fixer', 'EditorConfig.EditorConfig']);
 });
