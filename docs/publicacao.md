@@ -266,7 +266,12 @@ beta é o `image-tags.sh`, pelo formato da tag (`X.Y.Z` é estável, `X.Y.Z-beta
    ```
 
    Fora de comentários, o texto `latest` não aparece no `image.yml`: a referência móvel vem só do
-   `image-tags.sh`. A chamada ao `image-absent.sh` não fica dentro do laço `for` que percorre as referências.
+   `image-tags.sh`. A única exceção é o rótulo do runner, `runs-on: ubuntu-latest`, que não é referência de
+   imagem. A chamada ao `image-absent.sh` não fica dentro do laço `for` que percorre as referências.
+
+   O `run` da publicação é **POSIX `sh`**: não usa recursos exclusivos do bash (arrays, `[[ ]]`, `pipefail`,
+   `<<<`, `$'...'`). Ele precisa funcionar ao ser executado com `sh -e` (o ash do busybox no `node:22-alpine`, onde
+   os testes o rodam com `docker` e scripts falsos), além do bash do runner do Actions.
 
 Permissões: `contents: read` no workflow; no job, `contents: read` e `packages: write`. Não há PAT. A imagem
 publicada é Linux amd64.
