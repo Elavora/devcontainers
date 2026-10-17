@@ -3,9 +3,10 @@
 Ambiente de desenvolvimento compartilhado dos projetos PHP da Elavora.
 
 Este repositório constrói e publica a imagem `ghcr.io/elavora/php-dev`: PHP 8.3 sobre a imagem oficial Microsoft
-Dev Containers (Debian Bookworm), com Composer, Git e Xdebug, e o usuário `vscode` sem privilégios de root. Os
-projetos usam essa imagem no VS Code, nos agentes e no CI, e assim todos rodam no mesmo ambiente sem precisar
-clonar este repositório.
+Dev Containers (Debian Bookworm), com Composer, Git e Xdebug, as ferramentas de qualidade PHP-CS-Fixer e
+editorconfig-checker, e o usuário `vscode` sem privilégios de root. Os projetos usam essa imagem no VS Code, nos
+agentes e no CI, e assim todos rodam no mesmo ambiente, com as mesmas versões das ferramentas, sem precisar clonar
+este repositório.
 
 ## Começo rápido
 
@@ -15,10 +16,11 @@ clonar este repositório.
    projeto, com essa versão no campo `image`:
 
    ```json
-   "image": "ghcr.io/elavora/php-dev:8.3-0.1.0"
+   "image": "ghcr.io/elavora/php-dev:8.3-0.2.0"
    ```
 
-3. No VS Code, execute **Dev Containers: Reopen in Container** e rode `composer test` no terminal.
+3. No VS Code, execute **Dev Containers: Reopen in Container** e rode `composer test` no terminal. Os arquivos PHP
+   são formatados ao salvar, com a configuração do PHP-CS-Fixer do projeto.
 
 ## Documentação
 
@@ -26,11 +28,14 @@ Leia nesta ordem:
 
 1. [Como usar a imagem](docs/uso.md): usar no VS Code ou sem editor, atualizar a versão, construir localmente e o
    que vem no ambiente.
-2. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
+2. [Ferramentas de qualidade](docs/ferramentas-de-qualidade.md): o PHP-CS-Fixer e o editorconfig-checker da
+   imagem, a formatação ao salvar no VS Code, como atualizar a versão das ferramentas e o contrato do `Dockerfile`
+   e do smoke test.
+3. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
    GHCR, qual label usar no PR e o contrato dos workflows.
 
-As regras de versão e o catálogo de labels são comuns a toda a organização e ficam no
-[`Elavora/.github`](https://github.com/Elavora/.github).
+As regras de versão, o catálogo de labels e as regras de formatação (configuração do PHP-CS-Fixer e `.editorconfig`
+base) são comuns a toda a organização e ficam no [`Elavora/.github`](https://github.com/Elavora/.github).
 
 ## Desenvolvimento e testes
 
@@ -51,7 +56,8 @@ O repositório tem dois tipos de teste, separados:
   ```
 
 - **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.3, as extensões,
-  o Composer, o Git e o usuário sem root. Ele não faz parte do `node --test`. Veja
+  o Composer, o Git, o PHP-CS-Fixer, o editorconfig-checker e o usuário sem root. Ele não faz parte do
+  `node --test`. Veja
   [Construir a imagem localmente](docs/uso.md#construir-a-imagem-localmente).
 
 No CI, o workflow **Testes** roda os testes dos scripts e o actionlint em todo PR e em push na `main`, e o
