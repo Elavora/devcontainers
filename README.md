@@ -65,8 +65,8 @@ O repositório tem dois tipos de teste, separados:
 
 No CI, o workflow **Testes** roda os testes dos scripts e o actionlint em todo PR e em push na `main`
 (detalhes em [publicacao.md](docs/publicacao.md#testes-githubworkflowstestyml)). O workflow da imagem constrói e
-roda o `smoke.php` só nos PRs que mexem no ambiente (`Dockerfile`, `php.ini`, `tests/smoke.php`, `scripts/**` ou
-`.github/workflows/image.yml`) e na publicação de cada versão; ele não roda no push da `main` (veja
+roda o `smoke.php` só nos PRs que mexem no ambiente (`Dockerfile`, `.dockerignore`, `php.ini`, `tests/smoke.php`,
+`scripts/**` ou `.github/workflows/image.yml`) e na publicação de cada versão; ele não roda no push da `main` (veja
 [Quando a imagem é construída](docs/publicacao.md#quando-a-imagem-é-construída)).
 
 ## Contribuindo

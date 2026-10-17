@@ -47,7 +47,7 @@ na `main` e na publicação. Agora:
 
 | Momento | O que acontece |
 | --- | --- |
-| PR que mexe no ambiente (`Dockerfile`, `php.ini`, `tests/smoke.php`, `scripts/**` ou `.github/workflows/image.yml`) | constrói e roda o smoke test; não publica |
+| PR que mexe no ambiente (`Dockerfile`, `.dockerignore`, `php.ini`, `tests/smoke.php`, `scripts/**` ou `.github/workflows/image.yml`) | constrói e roda o smoke test; não publica |
 | PR que não mexe em nenhum desses arquivos (por exemplo, só docs ou testes dos scripts) | não constrói |
 | push na `main` (merge do PR) | não constrói |
 | publicação (`repository_dispatch` `tag-created`, depois do merge) | constrói na tag, roda o smoke test e publica |
@@ -185,6 +185,7 @@ on:
   pull_request:
     paths:
       - Dockerfile
+      - .dockerignore
       - php.ini
       - tests/smoke.php
       - 'scripts/**'
@@ -201,8 +202,9 @@ on:
 | `repository_dispatch` do tipo `tag-created` | constrói a imagem na tag, valida e **publica** |
 | `workflow_dispatch` | constrói e valida a imagem da ref escolhida; não publica |
 
-- `paths` do `pull_request` tem exatamente estes cinco itens: `Dockerfile`, `php.ini`, `tests/smoke.php`,
-  `scripts/**` e `.github/workflows/image.yml`. Não há `paths-ignore` nem `branches` no `pull_request`.
+- `paths` do `pull_request` tem exatamente estes seis itens: `Dockerfile`, `.dockerignore`, `php.ini`,
+  `tests/smoke.php`, `scripts/**` e `.github/workflows/image.yml`. O `.dockerignore` entra porque define o que vai
+  para o contexto do build e, portanto, afeta a imagem. Não há `paths-ignore` nem `branches` no `pull_request`.
 - **Não há gatilho `push`**, nem de branch nem de tag. O build que rodava no push da `main` saiu: o PR já validou a
   imagem, e a publicação constrói de novo na tag.
 - Nenhum outro gatilho (`pull_request_target`, `schedule`...).
