@@ -1,53 +1,63 @@
 # Elavora Dev Containers
 
-Ambientes de desenvolvimento compartilhados para os projetos da Elavora.
+Ambiente de desenvolvimento compartilhado dos projetos PHP da Elavora.
 
-## Ambiente inicial
+Este repositório constrói e publica a imagem `ghcr.io/elavora/php-dev`: PHP 8.3 sobre a imagem oficial Microsoft
+Dev Containers (Debian Bookworm), com Composer, Git e Xdebug, e o usuário `vscode` sem privilégios de root. Os
+projetos usam essa imagem no VS Code, nos agentes e no CI, e assim todos rodam no mesmo ambiente sem precisar
+clonar este repositório.
 
-PHP 8.3 sobre a imagem oficial Microsoft Dev Containers (Debian Bookworm), Composer, Git e Xdebug. O usuário padrão é `vscode`, sem privilégios de root. Xdebug fica desativado por padrão; use `XDEBUG_MODE=debug` ou `XDEBUG_MODE=coverage` quando necessário.
+## Começo rápido
 
-PHPUnit, PHPStan e formatadores pertencem ao `require-dev` de cada projeto. `composer install` instala as versões definidas pelo projeto. Esta imagem não inclui código nem dependências de uma aplicação.
+1. Escolha uma versão estável nas [releases](https://github.com/Elavora/devcontainers/releases). A release `X.Y.Z`
+   corresponde à imagem `ghcr.io/elavora/php-dev:8.3-X.Y.Z`.
+2. Copie [`examples/devcontainer.json`](examples/devcontainer.json) para `.devcontainer/devcontainer.json` do
+   projeto, com essa versão no campo `image`:
 
-## Uso local
+   ```json
+   "image": "ghcr.io/elavora/php-dev:8.3-0.1.0"
+   ```
 
-Na pasta deste repositório:
+3. No VS Code, execute **Dev Containers: Reopen in Container** e rode `composer test` no terminal.
 
-```powershell
-docker build -t elavora/php-dev:8.3 .
-docker run --rm elavora/php-dev:8.3 php /usr/local/share/elavora/smoke.php
-```
+## Documentação
 
-Copie `examples/devcontainer.json` para `.devcontainer/devcontainer.json` do projeto PHP. Com Docker Desktop e a extensão Dev Containers do VS Code instalados, abra o projeto e execute **Dev Containers: Reopen in Container**. O repositório é montado no ambiente e o Composer instala as dependências, incluindo as de desenvolvimento.
+Leia nesta ordem:
 
-No terminal do editor:
+1. [Como usar a imagem](docs/uso.md): usar no VS Code ou sem editor, atualizar a versão, construir localmente e o
+   que vem no ambiente.
+2. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
+   GHCR, qual label usar no PR e o contrato dos workflows.
 
-```sh
-composer test
-composer check
-```
+As regras de versão e o catálogo de labels são comuns a toda a organização e ficam no
+[`Elavora/.github`](https://github.com/Elavora/.github).
 
-Esses scripts precisam existir no `composer.json` do projeto. O Skeleton já possui ambos. Bibliotecas antigas podem ter apenas `composer test`.
+## Desenvolvimento e testes
 
-Para testar sem abrir um editor, na pasta do projeto:
+O repositório tem dois tipos de teste, separados:
 
-```powershell
-docker run --rm --mount "type=bind,source=$($PWD.Path),target=/workspace" -w /workspace elavora/php-dev:8.3 sh -lc 'git config --global --add safe.directory /workspace && composer install --no-interaction --prefer-dist && composer test'
-```
+- **Testes dos scripts e workflows** (`tests/*.test.cjs`): conferem `scripts/image-tags.sh`,
+  `scripts/image-absent.sh`, os workflows e o exemplo. Rodam com o test runner do Node.js, dentro de um container,
+  sem instalar nada na máquina. No PowerShell, na pasta do repositório:
 
-No Linux, ajuste permissões do bind mount ao UID do desenvolvedor; o VS Code Dev Containers faz esse ajuste para `remoteUser`.
+  ```powershell
+  docker run --rm -v "${PWD}:/w" -w /w node:22-alpine node --test "tests/*.test.cjs"
+  ```
 
-## Publicação e consumo compartilhado
+  Para checar a sintaxe dos workflows:
 
-O workflow valida builds em PRs e na main. Somente tags `v*` publicam no GHCR. Exemplo: a tag `v0.1.0` publica `ghcr.io/elavora/php-dev:8.3-v0.1.0`. Nenhuma versão foi publicada apenas por adicionar estes arquivos.
+  ```powershell
+  docker run --rm -v "${PWD}:/w" -w /w rhysd/actionlint:1.7.12 -color
+  ```
 
-Depois de publicar a primeira versão, configure o pacote como público no GitHub Packages e substitua o campo `image` dos consumidores pela tag publicada. Assim, os consumidores não precisam clonar este repositório nem construir a imagem localmente.
+- **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.3, as extensões,
+  o Composer, o Git e o usuário sem root. Ele não faz parte do `node --test`. Veja
+  [Construir a imagem localmente](docs/uso.md#construir-a-imagem-localmente).
 
-A publicação usa `GITHUB_TOKEN` com `packages: write`; não requer PAT. GitHub Actions e criação de pacotes devem estar permitidos pela organização. As imagens publicadas por este workflow são Linux amd64; outras arquiteturas podem ser adicionadas posteriormente.
+No CI, o workflow **Testes** roda os testes dos scripts e o actionlint em todo PR e em push na `main`, e o
+workflow da imagem roda o `smoke.php` (detalhes em [publicacao.md](docs/publicacao.md#testes-githubworkflowstestyml)).
 
-Mantenha tags de release sem sobrescrita. Os projetos atualizam a referência deliberadamente. A imagem base está fixada por digest; sua atualização exige alterar o Dockerfile. Os pacotes adicionais do Debian são resolvidos no build. Para consumir exatamente o mesmo artefato publicado, fixe também o digest da imagem GHCR.
+## Contribuindo
 
-## Extensões e serviços opcionais
-
-A primeira imagem atende o ambiente básico e os testes unitários do Skeleton. Redis, APCu, drivers de banco e MongoDB devem entrar em variantes conforme a necessidade dos módulos. Servidores de banco e filas ficam em serviços Compose separados. Não use esta imagem como imagem de produção.
-
-Regras de estilo e formatação serão consumidas de `Elavora/code-standards`; elas não são definidas neste repositório.
+Mudanças entram por pull request na `main`. As labels do PR definem a próxima versão (veja
+[Qual label usar no PR](docs/publicacao.md#qual-label-usar-no-pr)). Não use esta imagem em produção.
