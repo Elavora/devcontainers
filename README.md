@@ -32,6 +32,31 @@ Leia nesta ordem:
 As regras de versão e o catálogo de labels são comuns a toda a organização e ficam no
 [`Elavora/.github`](https://github.com/Elavora/.github).
 
+## Desenvolvimento e testes
+
+O repositório tem dois tipos de teste, separados:
+
+- **Testes dos scripts e workflows** (`tests/*.test.cjs`): conferem `scripts/image-tags.sh`,
+  `scripts/image-absent.sh`, os workflows e o exemplo. Rodam com o test runner do Node.js, dentro de um container,
+  sem instalar nada na máquina. No PowerShell, na pasta do repositório:
+
+  ```powershell
+  docker run --rm -v "${PWD}:/w" -w /w node:22-alpine node --test "tests/*.test.cjs"
+  ```
+
+  Para checar a sintaxe dos workflows:
+
+  ```powershell
+  docker run --rm -v "${PWD}:/w" -w /w rhysd/actionlint:1.7.12 -color
+  ```
+
+- **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.3, as extensões,
+  o Composer, o Git e o usuário sem root. Ele não faz parte do `node --test`. Veja
+  [Construir a imagem localmente](docs/uso.md#construir-a-imagem-localmente).
+
+No CI, o workflow **Testes** roda os testes dos scripts e o actionlint em todo PR e em push na `main`, e o
+workflow da imagem roda o `smoke.php` (detalhes em [publicacao.md](docs/publicacao.md#testes-githubworkflowstestyml)).
+
 ## Contribuindo
 
 Mudanças entram por pull request na `main`. As labels do PR definem a próxima versão (veja

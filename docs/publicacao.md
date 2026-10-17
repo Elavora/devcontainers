@@ -191,7 +191,9 @@ versionada do mesmo jeito.
       abaixo), que confere no GHCR se a referência ainda não existe. Todas as referências são conferidas antes de
       qualquer push. Se alguma já existir, ou se a consulta der erro, o job falha e nada é enviado.
    4. Para cada referência: `docker tag elavora/php-dev:8.3 <referência>` e `docker push <referência>`.
-   5. Logout do `ghcr.io` ao final, também em caso de falha (`trap ... EXIT`).
+   5. Logout do `ghcr.io` ao final, também em caso de falha (`trap ... EXIT`). A posição do `trap` em relação
+      ao login é livre (antes ou depois do `docker login`), desde que o logout aconteça sempre que o passo de
+      publicação terminar, com sucesso ou falha.
 
 Permissões: `contents: read` no workflow; no job, `contents: read` e `packages: write`. Não há PAT. A imagem
 publicada é Linux amd64.
@@ -316,6 +318,59 @@ Exemplos, com um comando falso em `IMAGE_INSPECT_CMD`:
   versão nova.
 - O fluxo central nunca move nem apaga tags do Git; a imagem versionada segue a mesma regra.
 
+### Testes: `.github/workflows/test.yml`
+
+Os testes dos scripts e dos workflows rodam num workflow próprio, separado do `image.yml`. Assim, uma falha nos
+testes aparece com nome próprio no PR e não depende do build da imagem, e o arquivo segue o mesmo modelo do
+`test.yml` do `Elavora/.github`. O `image.yml` continua com o build e o `smoke.php`, sem mudança por causa disso.
+
+Conteúdo esperado (a ordem das chaves pode variar):
+
+```yaml
+name: Testes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: node --test e actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Testes dos scripts e workflows
+        run: docker run --rm -v "$PWD:/w:ro" -w /w node:22-alpine node --test "tests/*.test.cjs"
+
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/w:ro" -w /w rhysd/actionlint:1.7.12 -color
+```
+
+- Gatilhos: todo `pull_request` e `push` na `main`. Não roda em `repository_dispatch` nem em `workflow_dispatch`.
+- Permissões: só `contents: read`, sem permissões no job além dessa. O checkout não persiste credenciais.
+- O job se chama `tests`.
+- `node:22-alpine` roda `node --test "tests/*.test.cjs"`. O `tests/smoke.php` não entra: ele é o teste da imagem e
+  roda no `image.yml`, dentro da imagem construída.
+- O actionlint é a imagem `rhysd/actionlint:1.7.12`, fixada nessa versão, como no `.github`.
+- O repositório é montado só para leitura (`:ro`) nos dois passos.
+
+Para rodar localmente, no PowerShell, na pasta do repositório (o mesmo comando, montando sem `:ro`):
+
+```powershell
+docker run --rm -v "${PWD}:/w" -w /w node:22-alpine node --test "tests/*.test.cjs"
+docker run --rm -v "${PWD}:/w" -w /w rhysd/actionlint:1.7.12 -color
+```
+
+No Git Bash, a conversão automática de caminhos quebra o `-v`; use o PowerShell.
+
 ### Arquivos removidos
 
 | Arquivo | Motivo |
@@ -324,7 +379,8 @@ Exemplos, com um comando falso em `IMAGE_INSPECT_CMD`:
 | `.github/workflows/sync_labels.yml` | substituído por `.github/workflows/sync-labels.yml` |
 | `.github/labels.yml` | o catálogo agora é o `.github/labels.json` do `Elavora/.github` |
 
-Depois da mudança, `.github/workflows/` contém exatamente `image.yml`, `release.yml` e `sync-labels.yml`. Nenhum
+Depois da mudança, `.github/workflows/` contém exatamente `image.yml`, `release.yml`, `sync-labels.yml` e
+`test.yml`. Nenhum
 workflow faz referência a `micnncim/action-label-syncer`, a `b1651502678ad20b6d6f01eea2f3bb480d220c72`, a
 `refs/tags/v` ou a `tags: ['v*']`.
 
