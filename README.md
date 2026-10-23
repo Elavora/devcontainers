@@ -18,8 +18,11 @@ este repositório.
    projeto, com essa versão no campo `image`:
 
    ```json
-   "image": "ghcr.io/elavora/php-dev:8.3-0.2.0"
+   "image": "ghcr.io/elavora/php-dev:8.3-latest"
    ```
+
+   O exemplo usa `8.3-latest`, que acompanha a última versão estável sem você precisar trocar nada. Se preferir
+   que todos usem sempre o mesmo ambiente, fixe a versão: `ghcr.io/elavora/php-dev:8.3-X.Y.Z`.
 
 3. No VS Code, execute **Dev Containers: Reopen in Container** e rode `composer test` no terminal. Os arquivos PHP
    são formatados ao salvar, com a configuração do PHP-CS-Fixer do projeto.
