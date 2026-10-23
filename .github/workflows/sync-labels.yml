@@ -13,6 +13,5 @@ jobs:
     permissions:
       contents: read
       issues: write
-    uses: Elavora/.github/.github/workflows/sync-labels.yml@6884d27a5dc5930dceee3fe39f0b112faf5c3034 # 1.0.0
-    with:
-      automation_ref: 6884d27a5dc5930dceee3fe39f0b112faf5c3034
+      id-token: write
+    uses: Elavora/.github/.github/workflows/sync-labels.yml@2a6cd142f0cd3f1aac93b98d19f561d4f91e169e # 1.3.2
