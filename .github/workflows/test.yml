@@ -2,6 +2,7 @@ name: Testes
 
 on:
   pull_request:
+    branches-ignore: ['tmp/**']
   push:
     branches: [main]
 

@@ -68,6 +68,59 @@ As regras completas estão em [`Elavora/.github/docs/versionamento.md`](https://
 e o catálogo de labels em [`Elavora/.github/docs/labels.md`](https://github.com/Elavora/.github/blob/main/docs/labels.md).
 Esta página não as repete. Ela descreve só o que é específico do `devcontainers`.
 
+### Descrição do PR e notas da release
+
+O PR abre com o template da organização (`Objetivo`, `Principais mudanças`, `Testes executados`, `Riscos` e
+`Notas de release`). A seção `## Notas de release` é opcional: o que estiver nela, em português, substitui o título
+do PR na GitHub Release. A seção termina no próximo título de nível 1 ou 2 ou na linha de atribuição dos agentes
+(`🤖 Generated with ...`): essa linha e o que vem depois não entram nas notas. Detalhes em
+[`Elavora/.github/docs/notas-de-release.md`](https://github.com/Elavora/.github/blob/main/docs/notas-de-release.md).
+Este repositório não precisa de nenhum arquivo para isso.
+
+### Branches `tmp/`
+
+Trabalho não salvo sobe para `tmp/<dev>/<nome>`, e essas branches não rodam CI
+([regra da organização](https://github.com/Elavora/.github/blob/main/docs/branches-temporarias.md)). Por isso,
+todo gatilho `push`, `pull_request` ou `pull_request_target` dos workflows deste repositório tem **um** filtro de
+branch, `branches` com nomes exatos (sem `*`, `?`, `[` ou `!` e sem `tmp/`) ou `branches-ignore` com `'tmp/**'`:
+
+| Arquivo | Gatilho | Filtro |
+| --- | --- | --- |
+| `.github/workflows/image.yml` | `pull_request` (com `paths`) | `branches-ignore: ['tmp/**']` |
+| `.github/workflows/test.yml` | `pull_request` | `branches-ignore: ['tmp/**']` |
+| `.github/workflows/test.yml` | `push` | `branches: [main]` |
+| `.github/workflows/release.yml` | `pull_request` (`types: [closed]`) | `branches: [main]` |
+| `.github/workflows/sync-labels.yml` | só `schedule` e `workflow_dispatch` | fora da regra |
+
+`repository_dispatch` e `workflow_dispatch` (no `image.yml`) também ficam fora da regra. Nenhum workflow usa
+`branches` e `branches-ignore` no mesmo gatilho. Um PR de uma branch `tmp/` com destino a `main` roda o CI
+normalmente: o filtro olha a branch de destino.
+
+### `.gitattributes`
+
+O `.gitattributes` da raiz segue o padrão da organização (o mesmo do `Elavora/.github`), para que os scripts `.sh`
+e os workflows sempre tenham fim de linha LF, também no Windows, e as imagens não sejam alteradas:
+
+```gitattributes
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.gif binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.webp binary
+
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+```
+
+Não há `.gitignore` neste repositório e ele não é necessário: não existem arquivos gerados no diretório de trabalho.
+
 ### O que você precisa fazer à mão
 
 - **Tornar o pacote público** (uma vez): o pacote `php-dev` nasce privado no primeiro push. Um administrador da
@@ -87,18 +140,28 @@ As seções abaixo são o contrato dos workflows e do script. Elas são a base d
 
 ### Versão do `.github` usada
 
-Os dois chamadores fixam a versão `1.0.0` do `Elavora/.github` pelo **SHA completo do commit** dessa tag, com a
+Os dois chamadores fixam a versão `1.3.2` do `Elavora/.github` pelo **SHA completo do commit** dessa tag, com a
 versão em comentário na mesma linha do `uses`:
 
 | Versão | SHA |
 | --- | --- |
-| `1.0.0` | `6884d27a5dc5930dceee3fe39f0b112faf5c3034` |
+| `1.3.2` | `2a6cd142f0cd3f1aac93b98d19f561d4f91e169e` |
 
-- O `uses` e o `automation_ref` recebem **o mesmo SHA**. Um valor diferente mistura duas versões da automação,
-  porque o `automation_ref` define de onde vêm os scripts.
-- Os chamadores deste repositório não usam `main`, nome de branch, tag beta nem o nome da tag (`@1.0.0`). O SHA
+- O `uses` é a **única** posição que carrega a versão. Os chamadores não informam `automation_ref`: desde a
+  `1.1.0`, o workflow central descobre sozinho o SHA de onde foi carregado (claim `job_workflow_sha` do token
+  OIDC) e baixa os scripts desse mesmo SHA. Por isso o job chamador concede `id-token: write`. Veja
+  [Versão da automação](https://github.com/Elavora/.github/blob/main/docs/versao-da-automacao.md).
+- Os chamadores deste repositório não usam `main`, nome de branch, tag beta nem o nome da tag (`@1.3.2`). O SHA
   impede que uma tag movida por engano mude a automação sem um PR aqui.
-- Atualizar a automação é um PR que troca o SHA nas duas posições de cada chamador e o comentário de versão.
+- Atualizar a automação é um PR que troca o SHA no `uses` de cada chamador e o comentário de versão.
+- Os SHAs `6884d27a5dc5930dceee3fe39f0b112faf5c3034` (`1.0.0`) e `b1651502678ad20b6d6f01eea2f3bb480d220c72`
+  (anterior à `1.0.0`) não podem aparecer em nenhum arquivo de `.github/workflows/`.
+- O que mudou da `1.0.0` para a `1.3.2` e afeta estes chamadores: `automation_ref` ficou opcional (e exige
+  `id-token: write` quando omitido); os workflows centrais deixaram de declarar `permissions` e herdam as do job
+  chamador; `package_name` é ignorado desde a `1.2.0` (o título da release é sempre `owner/repo tag`); as notas da
+  release passam a ser geradas em pt-BR e terminam na linha de atribuição (veja
+  [Descrição do PR e notas da release](#descrição-do-pr-e-notas-da-release)). A entrada `packagist` e o evento
+  `tag-created` (`client_payload: { tag, release_id, prerelease }`) não mudaram.
 
 ### Chamador de release: `.github/workflows/release.yml`
 
@@ -122,19 +185,21 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-    uses: Elavora/.github/.github/workflows/release.yml@6884d27a5dc5930dceee3fe39f0b112faf5c3034 # 1.0.0
+      id-token: write
+    uses: Elavora/.github/.github/workflows/release.yml@2a6cd142f0cd3f1aac93b98d19f561d4f91e169e # 1.3.2
     with:
-      automation_ref: 6884d27a5dc5930dceee3fe39f0b112faf5c3034
-      package_name: elavora/devcontainers
       packagist: false
 ```
 
-- Permissões no nível do workflow: só `contents: read`. As de escrita ficam no job: `contents: write` (tag e
-  release) e `pull-requests: read` (levantar os PRs do intervalo).
+- Permissões no nível do workflow: só `contents: read`. As do job: `contents: write` (tag e release),
+  `pull-requests: read` (levantar os PRs do intervalo) e `id-token: write` (descobrir a versão da automação). O
+  workflow central não declara `permissions`: ele herda exatamente estas.
+- Sem `automation_ref` e sem `package_name` (a entrada é ignorada desde a `1.2.0`).
 - `packagist: false`, porque o `devcontainers` não é pacote Composer nem está no Packagist. Por isso não há bloco
   `secrets`.
-- `package_name: elavora/devcontainers` aparece no título da release (exemplo: `elavora/devcontainers 0.1.0`).
-- Não há outras entradas.
+- O título da release é sempre `<dono>/<repositório> <tag>` (aqui, `Elavora/devcontainers 0.1.0`), sem depender de
+  entrada.
+- A única entrada é `packagist: false`.
 
 O workflow central só cria versão quando o PR foi integrado com base `main`. PR fechado sem merge aparece como
 `skipped`.
@@ -160,9 +225,8 @@ jobs:
     permissions:
       contents: read
       issues: write
-    uses: Elavora/.github/.github/workflows/sync-labels.yml@6884d27a5dc5930dceee3fe39f0b112faf5c3034 # 1.0.0
-    with:
-      automation_ref: 6884d27a5dc5930dceee3fe39f0b112faf5c3034
+      id-token: write
+    uses: Elavora/.github/.github/workflows/sync-labels.yml@2a6cd142f0cd3f1aac93b98d19f561d4f91e169e # 1.3.2
 ```
 
 - Sem gatilho `push`: o catálogo fica no `.github`, então nenhum arquivo local deve disparar a sincronização.
@@ -183,6 +247,8 @@ Bloco `on` esperado (a ordem das chaves e dos itens de `paths` pode variar; as l
 ```yaml
 on:
   pull_request:
+    branches-ignore:
+      - 'tmp/**'
     paths:
       - Dockerfile
       - .dockerignore
@@ -205,6 +271,9 @@ on:
 - `paths` do `pull_request` tem exatamente estes seis itens: `Dockerfile`, `.dockerignore`, `php.ini`,
   `tests/smoke.php`, `scripts/**` e `.github/workflows/image.yml`. O `.dockerignore` entra porque define o que vai
   para o contexto do build e, portanto, afeta a imagem. Não há `paths-ignore` nem `branches` no `pull_request`.
+- O `pull_request` tem `branches-ignore: ['tmp/**']` (e só esse filtro de branch): o PR com destino a uma branch
+  `tmp/` não constrói a imagem. O GitHub não aceita `branches` e `branches-ignore` no mesmo gatilho, por isso é
+  `branches-ignore`. Ele convive com `paths` no mesmo gatilho. Veja [Branches `tmp/`](#branches-tmp).
 - **Não há gatilho `push`**, nem de branch nem de tag. O build que rodava no push da `main` saiu: o PR já validou a
   imagem, e a publicação constrói de novo na tag.
 - Nenhum outro gatilho (`pull_request_target`, `schedule`...).
@@ -436,6 +505,8 @@ name: Testes
 
 on:
   pull_request:
+    branches-ignore:
+      - 'tmp/**'
   push:
     branches: [main]
 
@@ -459,7 +530,8 @@ jobs:
         run: docker run --rm -v "$PWD:/w:ro" -w /w rhysd/actionlint:1.7.12 -color
 ```
 
-- Gatilhos: todo `pull_request` e `push` na `main`. Não roda em `repository_dispatch` nem em `workflow_dispatch`.
+- Gatilhos: todo `pull_request` cujo destino não seja uma branch `tmp/` (`branches-ignore: ['tmp/**']`) e `push` na
+  `main` (`branches: [main]`). Não roda em `repository_dispatch` nem em `workflow_dispatch`.
 - Permissões: só `contents: read`, sem permissões no job além dessa. O checkout não persiste credenciais.
 - O job se chama `tests`.
 - `node:22-alpine` roda `node --test "tests/*.test.cjs"`. O `tests/smoke.php` não entra: ele é o teste da imagem e

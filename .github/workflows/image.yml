@@ -3,6 +3,7 @@ name: PHP development image
 on:
   # Só PRs que mexem no ambiente constroem a imagem; sem push na main (a publicação constrói na tag).
   pull_request:
+    branches-ignore: ['tmp/**']
     paths:
       - Dockerfile
       - .dockerignore
