@@ -10,8 +10,9 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { ROOT, readRepoFile, repoFileExists, tmpDir } = require('./helpers.cjs');
 
-const SHA = '6884d27a5dc5930dceee3fe39f0b112faf5c3034';
+const SHA = '2a6cd142f0cd3f1aac93b98d19f561d4f91e169e';
 const OLD_SHA = 'b1651502678ad20b6d6f01eea2f3bb480d220c72';
+const OLD_SHA_100 = '6884d27a5dc5930dceee3fe39f0b112faf5c3034';
 const CHECKOUT = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1';
 const WF = '.github/workflows';
 
@@ -92,24 +93,24 @@ test('nenhum workflow referencia o fluxo antigo', () => {
     const text = read(name);
     assert.ok(!text.includes('micnncim/action-label-syncer'), `${name}: micnncim/action-label-syncer`);
     assert.ok(!text.includes(OLD_SHA), `${name}: SHA antigo`);
+    assert.ok(!text.includes(OLD_SHA_100), `${name}: SHA da 1.0.0`);
     assert.ok(!text.includes('refs/tags/v'), `${name}: refs/tags/v`);
     assert.ok(!/tags:\s*\[\s*['"]v\*['"]\s*\]/.test(text), `${name}: tags: ['v*']`);
     assert.ok(!/tags:\s*\n\s*-\s*['"]v\*['"]/.test(text), `${name}: tags: - 'v*'`);
   }
 });
 
-// Chamadores: SHA completo no uses (com comentário de versão) e o mesmo SHA no automation_ref.
+// Chamadores: SHA completo no uses (com comentário de versão), sem automation_ref nem package_name.
 function assertCaller(text, workflow) {
   const uses = text.match(/^\s*uses:\s*(\S+)(.*)$/gm) || [];
   assert.equal(uses.length, 1, 'um único uses no chamador');
   assert.match(
     uses[0],
-    new RegExp(`uses:\\s*Elavora/\\.github/\\.github/workflows/${workflow.replace('.', '\\.')}@${SHA}\\s+#\\s*1\\.0\\.0\\s*$`),
+    new RegExp(`uses:\\s*Elavora/\\.github/\\.github/workflows/${workflow.replace('.', '\\.')}@${SHA}\\s+#\\s*1\\.3\\.2\\s*$`),
   );
-  const refs = text.match(/automation_ref:\s*['"]?([^\s'"#]+)/g) || [];
-  assert.equal(refs.length, 1, 'um único automation_ref');
-  assert.ok(refs[0].includes(SHA), `automation_ref deve ser ${SHA}: ${refs[0]}`);
-  assert.ok(!/@(main|1\.0\.0|v1)\b/.test(text), 'não usa branch nem nome de tag');
+  assert.ok(!/automation_ref/.test(text), 'sem automation_ref (a versão vem só do uses)');
+  assert.ok(!/package_name/.test(text), 'sem package_name (ignorado desde a 1.2.0)');
+  assert.ok(!/@(main|1\.3\.2|1\.0\.0|v1)\b/.test(text), 'não usa branch nem nome de tag');
 }
 
 test('release.yml: gatilho pull_request closed na main', () => {
@@ -126,18 +127,17 @@ test('release.yml: só roda se o PR foi integrado', () => {
   assert.match(t, /if:\s*\$?\{?\{?\s*github\.event\.pull_request\.merged\s*==\s*true\s*\}?\}?/);
 });
 
-test('release.yml: SHA fixado no uses e no automation_ref', () => {
+test('release.yml: SHA da 1.3.2 fixado no uses, sem automation_ref nem package_name', () => {
   assertCaller(code(read('release.yml')), 'release.yml');
 });
 
-test('release.yml: entradas package_name e packagist: false, sem secrets', () => {
+test('release.yml: única entrada packagist: false, sem secrets', () => {
   const t = code(read('release.yml'));
-  assert.match(t, /package_name:\s*['"]?elavora\/devcontainers['"]?\s*$/m);
   assert.match(t, /packagist:\s*false\s*$/m);
   assert.ok(!/^\s*secrets:/m.test(t), 'sem bloco secrets');
   const withBlock = t.split(/^\s*with:\s*$/m)[1] || '';
   const keys = [...withBlock.matchAll(/^\s+([a-z_]+):/gm)].map((m) => m[1]).sort();
-  assert.deepEqual(keys, ['automation_ref', 'package_name', 'packagist']);
+  assert.deepEqual(keys, ['packagist']);
 });
 
 test('release.yml: permissões contents: read no workflow e write/read no job', () => {
@@ -149,6 +149,8 @@ test('release.yml: permissões contents: read no workflow e write/read no job', 
   assert.ok(!/write/.test(topPerms), 'sem escrita no nível do workflow');
   assert.match(jobs, /contents:\s*write/);
   assert.match(jobs, /pull-requests:\s*read/);
+  assert.match(jobs, /id-token:\s*write/);
+  assert.ok(!/id-token/.test(topPerms), 'id-token só no job');
 });
 
 test('sync-labels.yml: gatilhos schedule semanal e workflow_dispatch, sem push', () => {
@@ -170,6 +172,8 @@ test('sync-labels.yml: SHA fixado, sem prune, permissões', () => {
   assert.ok(!/write/.test(topPerms));
   assert.match(jobs, /issues:\s*write/);
   assert.match(jobs, /contents:\s*read/);
+  assert.match(jobs, /id-token:\s*write/);
+  assert.ok(!/id-token/.test(topPerms), 'id-token só no job');
 });
 
 // Bloco `on` do image.yml e a sub-seção de um gatilho (linhas mais indentadas que a chave).
@@ -218,11 +222,12 @@ test('image.yml: repository_dispatch do tipo tag-created e workflow_dispatch man
   assert.ok(triggerBlock(on, 'workflow_dispatch'), 'workflow_dispatch');
 });
 
-test('image.yml: pull_request com paths de exatamente seis itens, sem paths-ignore nem branches', () => {
+test('image.yml: pull_request com seis paths e branches-ignore tmp/**, sem paths-ignore nem branches', () => {
   const pr = triggerBlock(imageOn(), 'pull_request');
   assert.ok(pr, 'pull_request');
   assert.ok(!/paths-ignore/.test(pr), 'sem paths-ignore');
-  assert.ok(!/^\s*branches(-ignore)?:/m.test(pr), 'sem branches');
+  assert.ok(!/^\s*branches:/m.test(pr), 'sem branches');
+  assert.deepEqual(listItems(pr, 'branches-ignore'), ['tmp/**']);
   const paths = listItems(pr, 'paths');
   assert.ok(paths, 'pull_request com paths');
   assert.deepEqual(
@@ -469,4 +474,53 @@ test('examples/devcontainer.json: extensões na ordem documentada, as novas no f
   const ext = j.customizations.vscode.extensions;
   assert.deepEqual(ext.slice(0, 2), ['xdebug.php-debug', 'bmewburn.vscode-intelephense-client']);
   assert.deepEqual(ext.slice(2), ['junstyle.php-cs-fixer', 'EditorConfig.EditorConfig']);
+});
+
+// Filtro de branch (docs/publicacao.md "Branches tmp/"): todo push, pull_request e pull_request_target
+// tem exatamente um filtro, `branches` com nomes exatos ou `branches-ignore: ['tmp/**']`.
+const onOf = (name) => (code(read(name)).split(/^on:\s*$/m)[1] || '').split(/^\S/m)[0];
+
+test('workflows: todo gatilho push/pull_request/pull_request_target tem um único filtro de branch válido', () => {
+  let verificados = 0;
+  for (const name of fs.readdirSync(path.join(ROOT, WF))) {
+    const on = onOf(name);
+    for (const trigger of ['push', 'pull_request', 'pull_request_target']) {
+      const block = triggerBlock(on, trigger);
+      if (!block) continue;
+      verificados++;
+      const temBranches = /^\s*branches:/m.test(block);
+      const temIgnore = /^\s*branches-ignore:/m.test(block);
+      assert.ok(temBranches !== temIgnore, `${name} ${trigger}: exatamente um entre branches e branches-ignore`);
+      if (temBranches) {
+        const itens = listItems(block, 'branches') || [];
+        assert.ok(itens.length > 0, `${name} ${trigger}: branches vazio`);
+        for (const b of itens) {
+          assert.ok(!/[*?[!]/.test(b), `${name} ${trigger}: nome não exato: ${b}`);
+          assert.ok(!b.includes('tmp/'), `${name} ${trigger}: branches com tmp/: ${b}`);
+        }
+      } else {
+        const itens = listItems(block, 'branches-ignore') || [];
+        assert.ok(itens.includes('tmp/**'), `${name} ${trigger}: branches-ignore deve conter 'tmp/**'`);
+      }
+    }
+  }
+  assert.ok(verificados >= 4, `gatilhos verificados: ${verificados}`);
+});
+
+test('test.yml: pull_request com branches-ignore tmp/** e push com branches [main]', () => {
+  const on = onOf('test.yml');
+  const pr = triggerBlock(on, 'pull_request');
+  const push = triggerBlock(on, 'push');
+  assert.ok(pr && push, 'pull_request e push');
+  assert.deepEqual(listItems(pr, 'branches-ignore'), ['tmp/**']);
+  assert.ok(!/^\s*branches:/m.test(pr));
+  assert.deepEqual(listItems(push, 'branches'), ['main']);
+  assert.ok(!/^\s*branches-ignore:/m.test(push));
+});
+
+test('release.yml: pull_request closed com branches [main] como único filtro', () => {
+  const pr = triggerBlock(onOf('release.yml'), 'pull_request');
+  assert.ok(pr, 'pull_request');
+  assert.deepEqual(listItems(pr, 'branches'), ['main']);
+  assert.ok(!/^\s*branches-ignore:/m.test(pr));
 });
