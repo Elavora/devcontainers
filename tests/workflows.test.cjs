@@ -436,12 +436,12 @@ test('.dockerignore continua excluindo scripts/', () => {
   assert.ok(!/^!\s*scripts/m.test(t));
 });
 
-test('examples/devcontainer.json segue exatamente o contrato de docs/uso.md (imagem 8.3-0.2.0, extensões e settings)', () => {
+test('examples/devcontainer.json segue exatamente o contrato de docs/uso.md (imagem 8.3-latest, extensões e settings)', () => {
   const j = JSON.parse(readRepoFile('examples/devcontainer.json'));
-  assert.equal(j.image, 'ghcr.io/elavora/php-dev:8.3-0.2.0');
+  assert.equal(j.image, 'ghcr.io/elavora/php-dev:8.3-latest');
   assert.deepEqual(j, {
     name: 'Elavora PHP 8.3',
-    image: 'ghcr.io/elavora/php-dev:8.3-0.2.0',
+    image: 'ghcr.io/elavora/php-dev:8.3-latest',
     remoteUser: 'vscode',
     postCreateCommand:
       'git config --global --add safe.directory "$(pwd)" && composer install --no-interaction --prefer-dist',
