@@ -19,6 +19,51 @@ foreach (['ctype', 'curl', 'dom', 'filter', 'json', 'mbstring', 'openssl', 'toke
     }
 }
 
+// Extensões de PHP (docs/extensoes-php.md). Sem servidor e sem rede.
+foreach (['apcu', 'redis', 'mongodb', 'pdo_mysql', 'pdo_pgsql'] as $extension) {
+    if (!extension_loaded($extension)) {
+        throw new RuntimeException("Extensao ausente: {$extension}");
+    }
+}
+
+foreach (['apcu' => '5.1.28', 'redis' => '6.3.0', 'mongodb' => '2.5.5'] as $extension => $version) {
+    if (phpversion($extension) !== $version) {
+        throw new RuntimeException("{$extension}: esperada a versao {$version}, obtida " . var_export(phpversion($extension), true));
+    }
+}
+
+$drivers = PDO::getAvailableDrivers();
+foreach (['mysql', 'pgsql', 'sqlite'] as $driver) {
+    if (!in_array($driver, $drivers, true)) {
+        throw new RuntimeException("pdo: driver {$driver} ausente (disponiveis: " . implode(',', $drivers) . ')');
+    }
+}
+
+if (apcu_store('elavora-smoke', 42) !== true || apcu_fetch('elavora-smoke') !== 42) {
+    throw new RuntimeException('apcu: apcu_store/apcu_fetch nao funcionam no CLI (apc.enable_cli).');
+}
+apcu_delete('elavora-smoke');
+
+if (!class_exists('Redis')) {
+    throw new RuntimeException('redis: classe Redis ausente.');
+}
+new Redis();
+
+if (preg_match('/^[0-9a-f]{24}$/', (string) new MongoDB\BSON\ObjectId()) !== 1) {
+    throw new RuntimeException('mongodb: ObjectId invalido (esperados 24 caracteres hexadecimais).');
+}
+new MongoDB\Driver\BulkWrite();
+
+exec('php --ri mongodb 2>&1', $mongoInfo);
+if (!str_contains(implode(PHP_EOL, $mongoInfo), 'libmongoc SSL => enabled')) {
+    throw new RuntimeException('mongodb: TLS (libmongoc SSL) desligado.');
+}
+
+exec('dpkg -s libpq5 > /dev/null 2>&1', $ignored, $dpkgStatus);
+if ($dpkgStatus !== 0) {
+    throw new RuntimeException('pdo_pgsql: pacote libpq5 ausente.');
+}
+
 foreach (['composer --version', 'git --version'] as $command) {
     passthru($command, $status);
     if ($status !== 0) {
