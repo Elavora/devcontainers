@@ -4,7 +4,8 @@ Ambiente de desenvolvimento compartilhado dos projetos PHP da Elavora.
 
 Este repositório constrói e publica a imagem `ghcr.io/elavora/php-dev`: PHP 8.3 sobre a imagem oficial Microsoft
 Dev Containers (Debian Bookworm), com Composer, Git e Xdebug, as ferramentas de qualidade PHP-CS-Fixer e
-editorconfig-checker, e o usuário `vscode` sem privilégios de root. Os projetos usam essa imagem no VS Code, nos
+editorconfig-checker, as extensões `apcu`, `redis`, `mongodb`, `pdo_mysql` e `pdo_pgsql` (só os drivers: a imagem não
+tem servidores de banco, Redis nem MongoDB), e o usuário `vscode` sem privilégios de root. Os projetos usam essa imagem no VS Code, nos
 agentes e no CI, e assim todos rodam no mesmo ambiente, com as mesmas versões das ferramentas, sem precisar clonar
 este repositório.
 
@@ -36,7 +37,9 @@ Leia nesta ordem:
 2. [Ferramentas de qualidade](docs/ferramentas-de-qualidade.md): o PHP-CS-Fixer e o editorconfig-checker da
    imagem, a formatação ao salvar no VS Code, como atualizar a versão das ferramentas e o contrato do `Dockerfile`
    e do smoke test.
-3. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
+3. [Extensões de PHP](docs/extensoes-php.md): as cinco extensões que a imagem traz desde a `0.4.0`, como conferir
+   com `php -m`, o que continua fora (os servidores), o tamanho e o contrato do `Dockerfile` e do smoke test.
+4. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
    GHCR, quando a `8.3-latest` é movida, quando a imagem é construída, qual label usar no PR e o contrato dos
    workflows.
 
@@ -61,8 +64,8 @@ O repositório tem dois tipos de teste, separados:
   docker run --rm -v "${PWD}:/w" -w /w rhysd/actionlint:1.7.12 -color
   ```
 
-- **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.3, as extensões,
-  o Composer, o Git, o PHP-CS-Fixer, o editorconfig-checker e o usuário sem root. Ele não faz parte do
+- **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.3, as extensões (inclusive as cinco de
+  [extensoes-php.md](docs/extensoes-php.md)), o Composer, o Git, o PHP-CS-Fixer, o editorconfig-checker e o usuário sem root. Ele não faz parte do
   `node --test`. Veja
   [Construir a imagem localmente](docs/uso.md#construir-a-imagem-localmente).
 
