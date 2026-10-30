@@ -1,6 +1,6 @@
 # Ferramentas de qualidade
 
-[README](../README.md) · Anterior: [Como usar a imagem](uso.md) · Próximo: [Versões e publicação da imagem](publicacao.md)
+[README](../README.md) · Anterior: [Como usar a imagem](uso.md) · Próximo: [Extensões de PHP](extensoes-php.md)
 
 ## Por que estão na imagem
 
@@ -125,8 +125,10 @@ O `.tar.gz` do editorconfig-checker `4.0.2` traz o executável `editorconfig-che
 
 **Regras:**
 
-- O download usa o `curl` que já vem na imagem base, com falha em erro HTTP (`-f`). Nenhum pacote do Debian é
-  adicionado: a linha do `apt-get install` continua só com `libzip-dev unzip`.
+- O download usa o `curl` que já vem na imagem base, com falha em erro HTTP (`-f`). A instalação das ferramentas
+  não adiciona nenhum pacote do Debian: a linha do `apt-get install` que já existia continua só com
+  `libzip-dev unzip`. (Os pacotes das extensões de PHP, que entram na `0.4.0`, ficam em um passo próprio, descrito
+  em [Extensões de PHP](extensoes-php.md#contrato-do-dockerfile).)
 - Cada arquivo baixado é conferido com `sha256sum -c` contra o `ARG` correspondente **antes** de ser instalado. Se
   o checksum não bater, o comando falha e o build para. Não há outra forma de verificação (sem GPG).
 - Destinos, com modo `0755`, dono `root` e executáveis pelo usuário `vscode`:
@@ -198,4 +200,4 @@ O contrato do exemplo, com as extensões e configurações acima, está em
 
 ---
 
-[README](../README.md) · Anterior: [Como usar a imagem](uso.md) · Próximo: [Versões e publicação da imagem](publicacao.md)
+[README](../README.md) · Anterior: [Como usar a imagem](uso.md) · Próximo: [Extensões de PHP](extensoes-php.md)

@@ -1,6 +1,6 @@
 # Versões e publicação da imagem
 
-[README](../README.md) · Anterior: [Ferramentas de qualidade](ferramentas-de-qualidade.md)
+[README](../README.md) · Anterior: [Extensões de PHP](extensoes-php.md)
 
 ## Por que existe este fluxo
 
@@ -602,6 +602,29 @@ Esta versão revoga a regra anterior de "nenhuma tag móvel", por decisão do us
   `ghcr.io/elavora/php-dev:8.3-0.2.0`.
 - Este PR altera `scripts/` e o `image.yml`, então o build da imagem roda no próprio PR.
 
+### 0.4.0: extensões de PHP
+
+- O PR da branch `feat/php-dev-extensoes` recebe as labels `enhancement` + `release` (veja
+  [Extensões de PHP](extensoes-php.md)).
+- **Por que `enhancement`:** a imagem só ganha extensões e uma opção do APCu; nada que existia é removido nem muda
+  de comportamento. É uma mudança compatível, então é minor, e não `upgrade` (a regra de versão do
+  [`Elavora/.github`](https://github.com/Elavora/.github/blob/main/docs/versionamento.md) só dá major para
+  `upgrade`).
+- **Por que `release`:** a `8.3-latest` só se move em versão estável, e os pacotes `api-*` usam a `8.3-latest`. Uma
+  beta não chegaria ao CI deles.
+- Este é o único PR do repositório nesta atualização dos pacotes `api-*`, então é também o último. Não há beta
+  pendente.
+- A última estável é `0.3.2`. Se nenhum outro PR entrar antes, o merge gera a estável **`0.4.0`**, com as imagens
+  `ghcr.io/elavora/php-dev:8.3-0.4.0` e `ghcr.io/elavora/php-dev:8.3-latest` (que passa a apontar para a mesma
+  imagem). A `8.3-latest` continua válida e continua sendo a única referência móvel.
+- Mudam o `Dockerfile`, o `php.ini` e o `tests/smoke.php`. Os workflows, os scripts e a versão fixada do
+  `Elavora/.github` não mudam, e os testes dos scripts (`tests/*.test.cjs`) só ganham os casos do `Dockerfile` e do
+  `php.ini` descritos em [Extensões de PHP](extensoes-php.md#contrato-do-dockerfile).
+- Como o PR altera o `Dockerfile`, o `php.ini` e o `tests/smoke.php`, o build da imagem e o smoke test rodam no
+  próprio PR.
+- Depois do merge, confira que a `0.4.0` publicou `8.3-0.4.0` e `8.3-latest` com o mesmo digest, e que
+  `docker run --rm ghcr.io/elavora/php-dev:8.3-0.4.0 php -m` lista as cinco extensões.
+
 ---
 
-[README](../README.md) · Anterior: [Ferramentas de qualidade](ferramentas-de-qualidade.md)
+[README](../README.md) · Anterior: [Extensões de PHP](extensoes-php.md)

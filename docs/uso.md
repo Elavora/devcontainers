@@ -12,7 +12,8 @@ precisa clonar este repositório nem construir a imagem.
 A imagem é só o ambiente. Ela não traz código nem dependências de nenhuma aplicação: PHPUnit e PHPStan ficam no
 `require-dev` de cada projeto, e o `composer install` instala as versões que o projeto definiu. A exceção são as
 ferramentas de qualidade (PHP-CS-Fixer e editorconfig-checker), que vêm na imagem a partir da `0.2.0` para que o
-editor e o CI usem a mesma versão (veja [Ferramentas de qualidade](ferramentas-de-qualidade.md)).
+editor e o CI usem a mesma versão (veja [Ferramentas de qualidade](ferramentas-de-qualidade.md)), e as extensões de
+PHP exigidas pelos pacotes (a partir da `0.4.0`; veja [Extensões de PHP](extensoes-php.md)).
 
 ## Visão geral
 
@@ -114,16 +115,23 @@ contra uma imagem ainda não publicada.
   build.
 - Ferramentas: Composer, Git, Xdebug e a extensão `zip`. A partir da `0.2.0`, também `php-cs-fixer` (3.95.27) e
   `editorconfig-checker` (4.0.2), em `/usr/local/bin` (veja [Ferramentas de qualidade](ferramentas-de-qualidade.md)).
+- Extensões de banco e cache: a partir da `0.4.0`, `pdo_mysql`, `pdo_pgsql`, `apcu` (5.1.28), `redis` (6.3.0) e
+  `mongodb` (2.5.5). Veja [Extensões de PHP](extensoes-php.md).
 - Usuário padrão: `vscode`, sem privilégios de root.
 - Xdebug fica desativado (`XDEBUG_MODE=off`). Use `XDEBUG_MODE=debug` ou `XDEBUG_MODE=coverage` quando precisar.
 - Arquitetura publicada: Linux amd64.
 - Não use esta imagem em produção.
 
-### Extensões e serviços opcionais
+### Extensões e serviços
 
-A imagem atende o ambiente básico e os testes unitários do Skeleton. Redis, APCu, drivers de banco e MongoDB
-entram em variantes, conforme a necessidade dos módulos. Servidores de banco e filas ficam em serviços Compose
-separados.
+Desde a `0.4.0`, a imagem traz os drivers `pdo_mysql` e `pdo_pgsql` e as extensões `apcu`, `redis` e `mongodb`,
+para que o `composer install` e os testes dos pacotes `api-*` rodem no CI sem instalar nada. Não há variantes da
+imagem: todo projeto usa a mesma. Veja [Extensões de PHP](extensoes-php.md).
+
+**Servidores não vêm na imagem.** MySQL, PostgreSQL, Redis e MongoDB ficam em serviços Compose separados. Os testes
+que precisam deles pulam quando o servidor não existe.
+
+Nas versões anteriores à `0.4.0` (por exemplo, `8.3-0.3.2`), as cinco extensões não existem.
 
 As regras de estilo e formatação (configuração do PHP-CS-Fixer e `.editorconfig` base) ficam no
 [`Elavora/.github`](https://github.com/Elavora/.github) e não são definidas neste repositório. Aqui ficam só as
