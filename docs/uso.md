@@ -83,6 +83,19 @@ Na pasta do projeto, no PowerShell:
 docker run --rm --mount "type=bind,source=$($PWD.Path),target=/workspace" -w /workspace ghcr.io/elavora/php-dev:8.3-0.2.0 sh -lc 'git config --global --add safe.directory /workspace && composer install --no-interaction --prefer-dist && composer test'
 ```
 
+O container roda como `vscode` (UID 1000). No Windows, o bind mount herda o atributo de somente leitura do arquivo.
+Se um `composer require` (ou outro comando que grave `composer.json`) falhar com `./composer.json is not writable`,
+o arquivo está marcado como somente leitura. Confira com `attrib`, no PowerShell, na pasta do projeto:
+
+```powershell
+attrib composer.json          # a letra R no início indica somente leitura
+attrib -R composer.json       # remove o atributo; depois rode o comando de novo
+```
+
+Sem o atributo, o comando funciona como `vscode`, sem root. Como alternativa, rode com `-u root`, adicionando
+`-u root` logo após `docker run --rm`. Esse modo grava como root no bind mount: os arquivos criados (como `vendor/`
+e `composer.lock`) ficam com dono `root` dentro do container. Use só se `attrib -R` não resolver.
+
 No Linux, ajuste as permissões do bind mount ao UID de quem desenvolve. O VS Code Dev Containers faz esse ajuste
 para o `remoteUser`.
 
