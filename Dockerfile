@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM mcr.microsoft.com/devcontainers/php:8.3-bookworm@sha256:5969378edcd6db3ca5ca5802d778f10c773d91729d868d9a7279151c4e26994e
+FROM mcr.microsoft.com/devcontainers/php:8.4-bookworm@sha256:fd3d7d93dc75f06e5085463602885b0647c797255efd14de77ddfb8eeb3788e6
 
 LABEL org.opencontainers.image.source="https://github.com/Elavora/devcontainers" \
       org.opencontainers.image.description="Ambiente PHP compartilhado da Elavora"

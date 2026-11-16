@@ -1,12 +1,12 @@
 #!/bin/sh
 # Confere no registro que uma referência da imagem ainda não existe.
-# Uso: sh scripts/image-absent.sh ghcr.io/elavora/php-dev:8.3-<tag>
+# Uso: sh scripts/image-absent.sh ghcr.io/elavora/php-dev:8.4-<tag>
 # Saída: 0 = não existe; 1 = já existe; 2 = argumento inválido ou erro na consulta.
 # O comando de inspeção vem de IMAGE_INSPECT_CMD (padrão: docker manifest inspect),
 # separado em palavras pelos espaços, sem eval.
 # Contrato: docs/publicacao.md, "Script scripts/image-absent.sh".
 
-PREFIX=ghcr.io/elavora/php-dev:8.3-
+PREFIX=ghcr.io/elavora/php-dev:8.4-
 
 is_num() {
     case $1 in

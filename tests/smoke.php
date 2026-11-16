@@ -9,8 +9,8 @@ declare(strict_types=1);
 const PHP_CS_FIXER_VERSION = '3.95.27';
 const EDITORCONFIG_CHECKER_VERSION = '4.0.2';
 
-if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 3) {
-    throw new RuntimeException('Esperado PHP 8.3.');
+if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4) {
+    throw new RuntimeException('Esperado PHP 8.4.');
 }
 
 foreach (['ctype', 'curl', 'dom', 'filter', 'json', 'mbstring', 'openssl', 'tokenizer', 'xml', 'xmlwriter', 'zip', 'xdebug'] as $extension) {

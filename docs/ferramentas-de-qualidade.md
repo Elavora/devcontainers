@@ -29,8 +29,8 @@ projeto (api-*, skeleton)   → usa a imagem no devcontainer e no CI, e traz a c
 
 No dia a dia:
 
-1. O projeto usa `ghcr.io/elavora/php-dev:8.3-latest` (que acompanha a última estável) no
-   `.devcontainer/devcontainer.json`. Se preferir fixar a versão, use `8.3-0.2.0` ou mais nova.
+1. O projeto usa `ghcr.io/elavora/php-dev:8.4-latest` (que acompanha a última estável) no
+   `.devcontainer/devcontainer.json`. Se preferir fixar a versão, use `8.4-1.0.0` ou mais nova.
 2. Ao salvar um arquivo PHP no VS Code, a extensão do PHP-CS-Fixer roda o `php-cs-fixer` da imagem com a
    configuração do projeto, e a extensão EditorConfig aplica o `.editorconfig` enquanto se edita.
 3. No PR, o CI roda as mesmas ferramentas, da mesma imagem.
@@ -161,8 +161,8 @@ RUN set -eu; \
 ### Smoke test: `tests/smoke.php`
 
 O smoke test roda dentro da imagem construída, como o usuário `vscode`, no `image.yml`
-(`docker run --rm elavora/php-dev:8.3 php /usr/local/share/elavora/smoke.php`). O comando e o workflow não mudam.
-Ele continua fazendo tudo o que já fazia (PHP 8.3, extensões, Composer, Git, usuário sem root) e passa a conferir
+(`docker run --rm elavora/php-dev:8.4 php /usr/local/share/elavora/smoke.php`). O comando e o workflow não mudam.
+Ele continua fazendo tudo o que já fazia (PHP 8.4, extensões, Composer, Git, usuário sem root) e passa a conferir
 também as duas ferramentas:
 
 | Verificação | Comando | Passa quando |

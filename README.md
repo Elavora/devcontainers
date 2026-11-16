@@ -2,7 +2,7 @@
 
 Ambiente de desenvolvimento compartilhado dos projetos PHP da Elavora.
 
-Este repositório constrói e publica a imagem `ghcr.io/elavora/php-dev`: PHP 8.3 sobre a imagem oficial Microsoft
+Este repositório constrói e publica a imagem `ghcr.io/elavora/php-dev`: PHP 8.4 sobre a imagem oficial Microsoft
 Dev Containers (Debian Bookworm), com Composer, Git e Xdebug, as ferramentas de qualidade PHP-CS-Fixer e
 editorconfig-checker, as extensões `apcu`, `redis`, `mongodb`, `pdo_mysql` e `pdo_pgsql` (só os drivers: a imagem não
 tem servidores de banco, Redis nem MongoDB), e o usuário `vscode` sem privilégios de root. Os projetos usam essa imagem no VS Code, nos
@@ -12,18 +12,20 @@ este repositório.
 ## Começo rápido
 
 1. Escolha uma versão estável nas [releases](https://github.com/Elavora/devcontainers/releases). A release `X.Y.Z`
-   corresponde à imagem `ghcr.io/elavora/php-dev:8.3-X.Y.Z`. Fixar a versão garante que todos usam o mesmo
-   ambiente. Se preferir acompanhar sempre a última estável, use `ghcr.io/elavora/php-dev:8.3-latest` (a partir
-   da `0.3.0`; veja [Versão fixa ou `8.3-latest`](docs/uso.md#versão-fixa-ou-83-latest)).
+   corresponde à imagem `ghcr.io/elavora/php-dev:8.4-X.Y.Z`. Fixar a versão garante que todos usam o mesmo
+   ambiente. Se preferir acompanhar sempre a última estável, use `ghcr.io/elavora/php-dev:8.4-latest` (existe
+   desde a `1.0.0`; veja [Versão fixa ou `8.4-latest`](docs/uso.md#versão-fixa-ou-84-latest)). A imagem passou do
+   PHP 8.3 para o 8.4 na `1.0.0`: as referências `8.3-*` continuam existindo, mas a `8.3-latest` não é mais movida
+   (ficou na `8.3-0.4.0`).
 2. Copie [`examples/devcontainer.json`](examples/devcontainer.json) para `.devcontainer/devcontainer.json` do
    projeto, com essa versão no campo `image`:
 
    ```json
-   "image": "ghcr.io/elavora/php-dev:8.3-latest"
+   "image": "ghcr.io/elavora/php-dev:8.4-latest"
    ```
 
-   O exemplo usa `8.3-latest`, que acompanha a última versão estável sem você precisar trocar nada. Se preferir
-   que todos usem sempre o mesmo ambiente, fixe a versão: `ghcr.io/elavora/php-dev:8.3-X.Y.Z`.
+   O exemplo usa `8.4-latest`, que acompanha a última versão estável sem você precisar trocar nada. Se preferir
+   que todos usem sempre o mesmo ambiente, fixe a versão: `ghcr.io/elavora/php-dev:8.4-X.Y.Z`.
 
 3. No VS Code, execute **Dev Containers: Reopen in Container** e rode `composer test` no terminal. Os arquivos PHP
    são formatados ao salvar, com a configuração do PHP-CS-Fixer do projeto.
@@ -40,7 +42,7 @@ Leia nesta ordem:
 3. [Extensões de PHP](docs/extensoes-php.md): as cinco extensões que a imagem traz desde a `0.4.0`, como conferir
    com `php -m`, o que continua fora (os servidores), o tamanho e o contrato do `Dockerfile` e do smoke test.
 4. [Versões e publicação da imagem](docs/publicacao.md): como cada PR integrado vira uma versão e uma imagem no
-   GHCR, quando a `8.3-latest` é movida, quando a imagem é construída, qual label usar no PR e o contrato dos
+   GHCR, quando a `8.4-latest` é movida, quando a imagem é construída, qual label usar no PR e o contrato dos
    workflows.
 
 As regras de versão, o catálogo de labels e as regras de formatação (configuração do PHP-CS-Fixer e `.editorconfig`
@@ -64,7 +66,7 @@ O repositório tem dois tipos de teste, separados:
   docker run --rm -v "${PWD}:/w" -w /w rhysd/actionlint:1.7.12 -color
   ```
 
-- **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.3, as extensões (inclusive as cinco de
+- **Teste da imagem** (`tests/smoke.php`): roda **dentro** da imagem construída e confere PHP 8.4, as extensões (inclusive as cinco de
   [extensoes-php.md](docs/extensoes-php.md)), o Composer, o Git, o PHP-CS-Fixer, o editorconfig-checker e o usuário sem root. Ele não faz parte do
   `node --test`. Veja
   [Construir a imagem localmente](docs/uso.md#construir-a-imagem-localmente).
