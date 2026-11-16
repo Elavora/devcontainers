@@ -253,8 +253,8 @@ test('image.yml: checkout fixado por SHA com a ref do payload no repository_disp
 
 test('image.yml: build e smoke test com o nome local', () => {
   const t = code(read('image.yml'));
-  assert.ok(t.includes('docker build --pull -t elavora/php-dev:8.3 .'));
-  assert.ok(t.includes('docker run --rm elavora/php-dev:8.3 php /usr/local/share/elavora/smoke.php'));
+  assert.ok(t.includes('docker build --pull -t elavora/php-dev:8.4 .'));
+  assert.ok(t.includes('docker run --rm elavora/php-dev:8.4 php /usr/local/share/elavora/smoke.php'));
 });
 
 test('image.yml: tag do payload chega por variável de ambiente, não interpolada no run', () => {
@@ -273,7 +273,7 @@ test('image.yml: ordem image-tags.sh → login → image-absent.sh → tag/push 
   const iTags = t.indexOf('scripts/image-tags.sh');
   const iLogin = t.search(/docker login[^\n]*ghcr\.io|docker login/);
   const iAbsent = t.indexOf('scripts/image-absent.sh');
-  const iTag = t.search(/docker tag elavora\/php-dev:8\.3 /);
+  const iTag = t.search(/docker tag elavora\/php-dev:8\.4 /);
   const iPush = t.indexOf('docker push');
   for (const [n, i] of Object.entries({ iTags, iLogin, iAbsent, iTag, iPush })) assert.ok(i >= 0, `${n} não encontrado`);
   assert.ok(iTags < iLogin, 'image-tags.sh antes do login');
@@ -300,7 +300,7 @@ test('image.yml: permissões contents: read e packages: write, sem PAT', () => {
 // Remove também comentários no fim da linha (" # ...").
 const noComments = (text) => code(text).split('\n').map((l) => l.replace(/\s+#.*$/, '')).join('\n');
 
-test('image.yml: o texto latest não aparece fora de comentários (a 8.3-latest vem só do image-tags.sh)', () => {
+test('image.yml: o texto latest não aparece fora de comentários (a 8.4-latest vem só do image-tags.sh)', () => {
   // O rótulo do runner (runs-on: ubuntu-latest) não é referência de imagem; ver o relatório do tester.
   const t = noComments(read('image.yml')).replace(/^(\s*runs-on:\s*)['"]?ubuntu-latest['"]?\s*$/gm, '$1');
   const linhas = t.split('\n').filter((l) => /latest/.test(l));
@@ -360,8 +360,8 @@ function runPublish(tag, { absentCode = 0 } = {}) {
     [
       'echo "image-tags $*" >> "$FAKE_LOG"',
       'case "$1" in',
-      '  1.2.0) printf "%s\\n" ghcr.io/elavora/php-dev:8.3-1.2.0 ghcr.io/elavora/php-dev:8.3-latest ;;',
-      '  1.2.0-beta.3) printf "%s\\n" ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3 ;;',
+      '  1.2.0) printf "%s\\n" ghcr.io/elavora/php-dev:8.4-1.2.0 ghcr.io/elavora/php-dev:8.4-latest ;;',
+      '  1.2.0-beta.3) printf "%s\\n" ghcr.io/elavora/php-dev:8.4-1.2.0-beta.3 ;;',
       '  *) echo "tag inválida: $1" >&2; exit 1 ;;',
       'esac',
     ].join('\n'),
@@ -381,9 +381,9 @@ function runPublish(tag, { absentCode = 0 } = {}) {
   return { code: res.status, stderr: res.stderr, calls };
 }
 
-const V_EST = 'ghcr.io/elavora/php-dev:8.3-1.2.0';
-const V_BETA = 'ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3';
-const LATEST = 'ghcr.io/elavora/php-dev:8.3-latest';
+const V_EST = 'ghcr.io/elavora/php-dev:8.4-1.2.0';
+const V_BETA = 'ghcr.io/elavora/php-dev:8.4-1.2.0-beta.3';
+const LATEST = 'ghcr.io/elavora/php-dev:8.4-latest';
 const tagPush = (calls) => calls.filter((c) => /^docker (tag|push) /.test(c));
 
 function assertPublishOrder(r, tag, versioned, refs) {
@@ -399,20 +399,20 @@ function assertPublishOrder(r, tag, versioned, refs) {
   assert.ok(iAbsent < iFirstTagPush, 'image-absent.sh antes de qualquer tag/push');
   assert.deepEqual(
     tagPush(c),
-    refs.flatMap((ref) => [`docker tag elavora/php-dev:8.3 ${ref}`, `docker push ${ref}`]),
+    refs.flatMap((ref) => [`docker tag elavora/php-dev:8.4 ${ref}`, `docker push ${ref}`]),
     'tag e push de cada referência, na ordem impressa',
   );
   assert.match(c.at(-1), /^docker logout ghcr\.io/, 'logout ao final');
 }
 
-test('image.yml: publicação estável envia a versionada e depois a 8.3-latest', () => {
+test('image.yml: publicação estável envia a versionada e depois a 8.4-latest', () => {
   assertPublishOrder(runPublish('1.2.0'), '1.2.0', V_EST, [V_EST, LATEST]);
 });
 
 test('image.yml: publicação beta envia só a versionada', () => {
   const r = runPublish('1.2.0-beta.3');
   assertPublishOrder(r, '1.2.0-beta.3', V_BETA, [V_BETA]);
-  assert.ok(!r.calls.some((x) => x.includes('latest')), 'beta nunca envia a 8.3-latest');
+  assert.ok(!r.calls.some((x) => x.includes('latest')), 'beta nunca envia a 8.4-latest');
 });
 
 test('image.yml: se o image-absent.sh falhar, nada é enviado e o logout acontece', () => {
@@ -436,12 +436,12 @@ test('.dockerignore continua excluindo scripts/', () => {
   assert.ok(!/^!\s*scripts/m.test(t));
 });
 
-test('examples/devcontainer.json segue exatamente o contrato de docs/uso.md (imagem 8.3-latest, extensões e settings)', () => {
+test('examples/devcontainer.json segue exatamente o contrato de docs/uso.md (imagem 8.4-latest, extensões e settings)', () => {
   const j = JSON.parse(readRepoFile('examples/devcontainer.json'));
-  assert.equal(j.image, 'ghcr.io/elavora/php-dev:8.3-latest');
+  assert.equal(j.image, 'ghcr.io/elavora/php-dev:8.4-latest');
   assert.deepEqual(j, {
-    name: 'Elavora PHP 8.3',
-    image: 'ghcr.io/elavora/php-dev:8.3-latest',
+    name: 'Elavora PHP 8.4',
+    image: 'ghcr.io/elavora/php-dev:8.4-latest',
     remoteUser: 'vscode',
     postCreateCommand:
       'git config --global --add safe.directory "$(pwd)" && composer install --no-interaction --prefer-dist',

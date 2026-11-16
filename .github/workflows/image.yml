@@ -29,9 +29,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.tag || github.ref }}
       - name: Build
-        run: docker build --pull -t elavora/php-dev:8.3 .
+        run: docker build --pull -t elavora/php-dev:8.4 .
       - name: Validate tools and user
-        run: docker run --rm elavora/php-dev:8.3 php /usr/local/share/elavora/smoke.php
+        run: docker run --rm elavora/php-dev:8.4 php /usr/local/share/elavora/smoke.php
       - name: Publish version
         if: github.event_name == 'repository_dispatch'
         env:
@@ -50,6 +50,6 @@ jobs:
           sh scripts/image-absent.sh "$version_ref"
           # Envia na ordem impressa: a versionada antes da móvel.
           for ref in $refs; do
-            docker tag elavora/php-dev:8.3 "$ref"
+            docker tag elavora/php-dev:8.4 "$ref"
             docker push "$ref"
           done

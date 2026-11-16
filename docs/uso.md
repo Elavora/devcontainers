@@ -4,7 +4,7 @@
 
 ## Por que usar
 
-Cada projeto PHP da Elavora precisa do mesmo ambiente: PHP 8.3, Composer, Git e Xdebug, com um usuário sem
+Cada projeto PHP da Elavora precisa do mesmo ambiente: PHP 8.4, Composer, Git e Xdebug, com um usuário sem
 privilégios de root. Em vez de cada projeto montar o seu, todos usam a imagem publicada
 `ghcr.io/elavora/php-dev`. Assim o ambiente é igual na máquina de cada pessoa, nos agentes e no CI, e ninguém
 precisa clonar este repositório nem construir a imagem.
@@ -17,30 +17,30 @@ PHP exigidas pelos pacotes (a partir da `0.4.0`; veja [Extensões de PHP](extens
 
 ## Visão geral
 
-1. Escolha uma versão publicada da imagem, por exemplo `ghcr.io/elavora/php-dev:8.3-0.2.0`. As versões estão nas
-   [releases do repositório](https://github.com/Elavora/devcontainers/releases): a release `0.2.0` corresponde à
-   imagem `8.3-0.2.0`.
+1. Escolha uma versão publicada da imagem, por exemplo `ghcr.io/elavora/php-dev:8.4-1.0.0`. As versões estão nas
+   [releases do repositório](https://github.com/Elavora/devcontainers/releases): a release `1.0.0` corresponde à
+   imagem `8.4-1.0.0`, a primeira com PHP 8.4. As releases `0.x` são as imagens `8.3-*`.
 2. Coloque essa referência no `.devcontainer/devcontainer.json` do projeto.
 3. Abra o projeto no container e rode os testes.
 
-Prefira versões estáveis (`8.3-X.Y.Z`). As betas (`8.3-X.Y.Z-beta.N`) servem para testar uma mudança do ambiente
+Prefira versões estáveis (`8.4-X.Y.Z`). As betas (`8.4-X.Y.Z-beta.N`) servem para testar uma mudança do ambiente
 antes da estável. Para saber como as versões são criadas, veja [Versões e publicação da imagem](publicacao.md).
 
-### Versão fixa ou `8.3-latest`
+### Versão fixa ou `8.4-latest`
 
 Há duas formas de apontar para a imagem:
 
 | Referência | Quando usar | O que acontece |
 | --- | --- | --- |
-| `ghcr.io/elavora/php-dev:8.3-X.Y.Z` (versão fixa) | quando o projeto precisa de reprodutibilidade: todos, inclusive o CI, usam exatamente o mesmo ambiente até alguém trocar a versão num PR | a referência nunca muda de imagem |
-| `ghcr.io/elavora/php-dev:8.3-latest` | quando você quer sempre a última estável, sem atualizar a versão à mão | a cada release estável, passa a apontar para a imagem nova; betas não a alteram |
+| `ghcr.io/elavora/php-dev:8.4-X.Y.Z` (versão fixa) | quando o projeto precisa de reprodutibilidade: todos, inclusive o CI, usam exatamente o mesmo ambiente até alguém trocar a versão num PR | a referência nunca muda de imagem |
+| `ghcr.io/elavora/php-dev:8.4-latest` | quando você quer sempre a última estável, sem atualizar a versão à mão | a cada release estável, passa a apontar para a imagem nova; betas não a alteram |
 
-O exemplo deste repositório usa a `8.3-latest`, para não ficar desatualizado: ela acompanha a última versão
-estável. Fixar a versão (`8.3-X.Y.Z`) continua possível e é a melhor escolha quando o projeto precisa de
-reprodutibilidade. A `8.3-latest` existe a partir da `0.3.0`.
+O exemplo deste repositório usa a `8.4-latest`, para não ficar desatualizado: ela acompanha a última versão
+estável. Fixar a versão (`8.4-X.Y.Z`) continua possível e é a melhor escolha quando o projeto precisa de
+reprodutibilidade. A `8.4-latest` existe desde a `1.0.0`; a `8.3-latest` ficou na `8.3-0.4.0`.
 
-Com a `8.3-latest`, o Docker só usa a imagem nova depois de baixá-la de novo: rode
-`docker pull ghcr.io/elavora/php-dev:8.3-latest` e reconstrua o container (**Dev Containers: Rebuild Container**
+Com a `8.4-latest`, o Docker só usa a imagem nova depois de baixá-la de novo: rode
+`docker pull ghcr.io/elavora/php-dev:8.4-latest` e reconstrua o container (**Dev Containers: Rebuild Container**
 no VS Code). Duas máquinas podem estar em estáveis diferentes se uma delas não baixou a imagem nova.
 
 ## Usar no VS Code (Dev Containers)
@@ -50,15 +50,15 @@ projeto. O ponto principal é o campo `image`:
 
 ```json
 {
-  "name": "Elavora PHP 8.3",
-  "image": "ghcr.io/elavora/php-dev:8.3-latest",
+  "name": "Elavora PHP 8.4",
+  "image": "ghcr.io/elavora/php-dev:8.4-latest",
   "remoteUser": "vscode",
   "postCreateCommand": "git config --global --add safe.directory \"$(pwd)\" && composer install --no-interaction --prefer-dist"
 }
 ```
 
-(`8.3-latest` acompanha a última versão estável, que já traz as ferramentas de qualidade. Para fixar a versão,
-troque por `8.3-X.Y.Z`, por exemplo `8.3-0.2.0`, a primeira com essas ferramentas.)
+(`8.4-latest` acompanha a última versão estável, que já traz as ferramentas de qualidade. Para fixar a versão,
+troque por `8.4-X.Y.Z`, por exemplo `8.4-1.0.0`, a primeira da linha 8.4.)
 
 Com o Docker Desktop e a extensão Dev Containers do VS Code instalados, abra o projeto e execute
 **Dev Containers: Reopen in Container**. O repositório é montado no ambiente, e o Composer instala as dependências,
@@ -80,7 +80,7 @@ podem ter só `composer test`.
 Na pasta do projeto, no PowerShell:
 
 ```powershell
-docker run --rm --mount "type=bind,source=$($PWD.Path),target=/workspace" -w /workspace ghcr.io/elavora/php-dev:8.3-0.2.0 sh -lc 'git config --global --add safe.directory /workspace && composer install --no-interaction --prefer-dist && composer test'
+docker run --rm --mount "type=bind,source=$($PWD.Path),target=/workspace" -w /workspace ghcr.io/elavora/php-dev:8.4-1.0.0 sh -lc 'git config --global --add safe.directory /workspace && composer install --no-interaction --prefer-dist && composer test'
 ```
 
 O container roda como `vscode` (UID 1000). No Windows, o bind mount herda o atributo de somente leitura do arquivo.
@@ -103,10 +103,10 @@ para o `remoteUser`.
 
 Uma versão publicada não muda. Para receber um ambiente novo, o projeto troca a versão no campo `image`, num PR
 próprio. Para consumir exatamente o mesmo artefato, fixe também o digest:
-`ghcr.io/elavora/php-dev:8.3-0.2.0@sha256:<digest>`.
+`ghcr.io/elavora/php-dev:8.4-1.0.0@sha256:<digest>`.
 
-Quem usa `8.3-latest` não troca nada no `devcontainer.json`: basta baixar a imagem de novo e reconstruir o
-container (veja [Versão fixa ou `8.3-latest`](#versão-fixa-ou-83-latest)).
+Quem usa `8.4-latest` não troca nada no `devcontainer.json`: basta baixar a imagem de novo e reconstruir o
+container (veja [Versão fixa ou `8.4-latest`](#versão-fixa-ou-84-latest)).
 
 ## Construir a imagem localmente
 
@@ -114,16 +114,16 @@ Só é preciso para mudar o próprio ambiente (o `Dockerfile`, o `php.ini` ou o 
 repositório:
 
 ```powershell
-docker build -t elavora/php-dev:8.3 .
-docker run --rm elavora/php-dev:8.3 php /usr/local/share/elavora/smoke.php
+docker build -t elavora/php-dev:8.4 .
+docker run --rm elavora/php-dev:8.4 php /usr/local/share/elavora/smoke.php
 ```
 
-O nome local `elavora/php-dev:8.3` continua existindo para esse uso e para rodar testes de outros repositórios
+O nome local `elavora/php-dev:8.4` continua existindo para esse uso e para rodar testes de outros repositórios
 contra uma imagem ainda não publicada.
 
 ## Detalhes do ambiente
 
-- Base: imagem oficial Microsoft Dev Containers para PHP 8.3 (Debian Bookworm), fixada por digest no
+- Base: imagem oficial Microsoft Dev Containers para PHP 8.4 (Debian Bookworm), fixada por digest no
   `Dockerfile`. Atualizar a base exige alterar o `Dockerfile`. Os pacotes adicionais do Debian são resolvidos no
   build.
 - Ferramentas: Composer, Git, Xdebug e a extensão `zip`. A partir da `0.2.0`, também `php-cs-fixer` (3.95.27) e
@@ -156,8 +156,8 @@ Conteúdo esperado (a ordem das chaves pode variar; a ordem da lista de extensõ
 
 ```json
 {
-  "name": "Elavora PHP 8.3",
-  "image": "ghcr.io/elavora/php-dev:8.3-latest",
+  "name": "Elavora PHP 8.4",
+  "image": "ghcr.io/elavora/php-dev:8.4-latest",
   "remoteUser": "vscode",
   "postCreateCommand": "git config --global --add safe.directory \"$(pwd)\" && composer install --no-interaction --prefer-dist",
   "customizations": {
@@ -184,12 +184,12 @@ Conteúdo esperado (a ordem das chaves pode variar; a ordem da lista de extensõ
 }
 ```
 
-- O campo `image` é exatamente `ghcr.io/elavora/php-dev:8.3-latest`, a referência que acompanha a última versão
-  estável (ver [Versão fixa ou `8.3-latest`](#versão-fixa-ou-83-latest)). Ela é movida a cada estável, então o
+- O campo `image` é exatamente `ghcr.io/elavora/php-dev:8.4-latest`, a referência que acompanha a última versão
+  estável (ver [Versão fixa ou `8.4-latest`](#versão-fixa-ou-84-latest)). Ela é movida a cada estável, então o
   exemplo não fica desatualizado. As ferramentas de qualidade vêm desde a `0.2.0`
   (ver [publicacao.md](publicacao.md#020-ferramentas-de-qualidade)).
-- Quem precisa de reprodutibilidade troca o campo `image` no próprio projeto por uma versão fixa (`8.3-X.Y.Z`,
-  como `8.3-0.2.0`). Não existem `8.3` nem `latest` puros.
+- Quem precisa de reprodutibilidade troca o campo `image` no próprio projeto por uma versão fixa (`8.4-X.Y.Z`,
+  como `8.4-1.0.0`). Não existem `8.4` nem `latest` puros.
 - `name`, `remoteUser`, `postCreateCommand` e `php.validate.executablePath` ficam como estavam.
 - `extensions` contém exatamente as quatro extensões acima, nessa ordem: as duas que já existiam e, no fim,
   `junstyle.php-cs-fixer` e `EditorConfig.EditorConfig`.

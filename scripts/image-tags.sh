@@ -1,11 +1,11 @@
 #!/bin/sh
 # Valida a tag criada pelo fluxo central e imprime as referências da imagem no GHCR, uma por linha:
-# a versionada primeiro e, se a tag for estável, a 8.3-latest em seguida.
+# a versionada primeiro e, se a tag for estável, a 8.4-latest em seguida.
 # Uso: sh scripts/image-tags.sh <tag>   (X.Y.Z ou X.Y.Z-beta.N)
 # Contrato: docs/publicacao.md, "Script scripts/image-tags.sh".
 
 IMAGE=ghcr.io/elavora/php-dev
-PHP_VERSION=8.3
+PHP_VERSION=8.4
 
 # Número sem zero à esquerda (0 é aceito).
 is_num() {

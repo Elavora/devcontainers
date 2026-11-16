@@ -16,8 +16,8 @@ A partir da versão `0.4.0`, a imagem traz as cinco extensões. A imagem continu
 
 | Extensão | Usada por | Versão | Como é instalada |
 | --- | --- | --- | --- |
-| `pdo_mysql` | `api-database-mysql` | a do PHP (8.3.x da base) | `docker-php-ext-install` |
-| `pdo_pgsql` | `api-database-postgresql` | a do PHP (8.3.x da base) | `docker-php-ext-install` |
+| `pdo_mysql` | `api-database-mysql` | a do PHP (8.4.x da base) | `docker-php-ext-install` |
+| `pdo_pgsql` | `api-database-postgresql` | a do PHP (8.4.x da base) | `docker-php-ext-install` |
 | `apcu` | `api-cache-apcu` | `5.1.28` | PECL, pelo arquivo `.tgz` com SHA-256 |
 | `redis` | `api-redis`, `api-cache-redis`, `api-queue-redis` | `6.3.0` | PECL, pelo arquivo `.tgz` com SHA-256 |
 | `mongodb` | `api-log-mongodb` | `2.5.5` | PECL, pelo arquivo `.tgz` com SHA-256 |
@@ -194,7 +194,7 @@ Uma versão nova de extensão é uma versão nova da imagem: um PR neste reposit
 2. Calcule o SHA-256 do arquivo que a imagem baixa, num container (nada é instalado na máquina):
 
    ```powershell
-   docker run --rm ghcr.io/elavora/php-dev:8.3-latest sh -c 'curl -fsSL https://pecl.php.net/get/redis-6.3.0.tgz | sha256sum'
+   docker run --rm ghcr.io/elavora/php-dev:8.4-latest sh -c 'curl -fsSL https://pecl.php.net/get/redis-6.3.0.tgz | sha256sum'
    ```
 
 3. Troque a versão e o SHA-256 nos `ARG` do `Dockerfile` e a versão esperada no `tests/smoke.php`.

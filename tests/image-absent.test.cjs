@@ -10,7 +10,7 @@ const path = require('node:path');
 const { runScript, tmpDir, repoFileExists } = require('./helpers.cjs');
 
 const SCRIPT = 'scripts/image-absent.sh';
-const REF = 'ghcr.io/elavora/php-dev:8.3-0.1.0';
+const REF = 'ghcr.io/elavora/php-dev:8.4-0.1.0';
 
 // Comando falso: grava os argumentos recebidos (um por linha), imprime FAKE_OUTPUT e sai com FAKE_CODE.
 function makeFake(dir, name) {
@@ -145,7 +145,7 @@ for (const [label, value] of [['ausente', undefined], ['vazia', '']]) {
 
 test('aceita referência beta válida', () => {
   const s = setup({ output: 'manifest unknown', code: 1 });
-  const ref = 'ghcr.io/elavora/php-dev:8.3-1.2.0-beta.3';
+  const ref = 'ghcr.io/elavora/php-dev:8.4-1.2.0-beta.3';
   const r = runScript(SCRIPT, [ref], s.env);
   assert.equal(r.code, 0, r.stderr);
   assert.equal(args(s.log).at(-1), ref);
@@ -155,18 +155,18 @@ test('aceita referência beta válida', () => {
 const ARGS_INVALIDOS = [
   ['nenhum argumento', []],
   ['argumento vazio', ['']],
-  ['dois argumentos', [REF, 'ghcr.io/elavora/php-dev:8.3-0.1.1']],
-  ['tag com prefixo v', ['ghcr.io/elavora/php-dev:8.3-v1.0.0']],
-  ['tag rc legada', ['ghcr.io/elavora/php-dev:8.3-v0.0.1-rc.1']],
-  ['beta.0', ['ghcr.io/elavora/php-dev:8.3-1.0.0-beta.0']],
-  ['zero à esquerda', ['ghcr.io/elavora/php-dev:8.3-01.0.0']],
-  ['tag móvel 8.3', ['ghcr.io/elavora/php-dev:8.3']],
+  ['dois argumentos', [REF, 'ghcr.io/elavora/php-dev:8.4-0.1.1']],
+  ['tag com prefixo v', ['ghcr.io/elavora/php-dev:8.4-v1.0.0']],
+  ['tag rc legada', ['ghcr.io/elavora/php-dev:8.4-v0.0.1-rc.1']],
+  ['beta.0', ['ghcr.io/elavora/php-dev:8.4-1.0.0-beta.0']],
+  ['zero à esquerda', ['ghcr.io/elavora/php-dev:8.4-01.0.0']],
+  ['tag móvel 8.4', ['ghcr.io/elavora/php-dev:8.4']],
   ['tag móvel latest', ['ghcr.io/elavora/php-dev:latest']],
-  ['tag móvel 8.3-latest', ['ghcr.io/elavora/php-dev:8.3-latest']],
+  ['tag móvel 8.4-latest', ['ghcr.io/elavora/php-dev:8.4-latest']],
   ['só a tag', ['0.1.0']],
-  ['outro registro', ['docker.io/elavora/php-dev:8.3-0.1.0']],
-  ['outra imagem', ['ghcr.io/elavora/outra:8.3-0.1.0']],
-  ['outra versão de PHP', ['ghcr.io/elavora/php-dev:8.4-0.1.0']],
+  ['outro registro', ['docker.io/elavora/php-dev:8.4-0.1.0']],
+  ['outra imagem', ['ghcr.io/elavora/outra:8.4-0.1.0']],
+  ['outra versão de PHP', ['ghcr.io/elavora/php-dev:8.3-0.1.0']],
   ['espaço na ponta', [`${REF} `]],
   ['duas linhas', [`${REF}\nx`]],
   ['com digest', [`${REF}@sha256:${'a'.repeat(64)}`]],
